@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Product, SalesPerson } from '../types.ts';
+import { Product, SalesPerson } from '../types';
 
 interface ProductDetailProps {
   product: Product;

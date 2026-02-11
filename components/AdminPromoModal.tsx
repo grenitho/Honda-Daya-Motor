@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Promo } from '../types.ts';
+import { Promo } from '../types';
 
 interface AdminPromoModalProps {
   isOpen: boolean;

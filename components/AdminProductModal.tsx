@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { Product } from '../types.ts';
-import UploadModal from './UploadModal.tsx';
+import { Product } from '../types';
+import UploadModal from './UploadModal';
 
 interface AdminProductModalProps {
   isOpen: boolean;
@@ -29,8 +29,10 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({ isOpen, onClose, 
 
   const handleSaveProduct = (product: Product) => {
     if (editingProduct) {
+      // Update existing
       onSave(products.map(p => p.id === product.id ? product : p));
     } else {
+      // Add new
       onSave([product, ...products]);
     }
     setEditingProduct(undefined);

@@ -1,5 +1,5 @@
 
-import { Product, SalesPerson, Promo } from './types.ts';
+import { Product, SalesPerson, Promo } from './types';
 
 export const SALES_INFO: SalesPerson = {
   name: 'Budi Hartono', 
@@ -50,6 +50,7 @@ export const INITIAL_PRODUCTS: Product[] = [
       fuelCapacity: '16.1 Liters'
     },
     features: ['Aerodynamic Winglets', 'Ohlins Electronic Control', 'Brembo Stylema Calipers', 'Quick Shifter'],
+    // Adding missing colors property to satisfy the Product interface
     colors: ['Grand Prix Red', 'Matte Pearl Morion Black']
   },
   {
@@ -67,6 +68,7 @@ export const INITIAL_PRODUCTS: Product[] = [
       fuelCapacity: '8.1 Liters'
     },
     features: ['Honda Selectable Torque Control (HSTC)', 'Full LED Lighting', 'Smart Key System', 'USB Charger'],
+    // Adding missing colors property to satisfy the Product interface
     colors: ['Wonderful White', 'Majestic Matte Blue', 'Glorious Matte Black']
   },
   {
@@ -84,6 +86,7 @@ export const INITIAL_PRODUCTS: Product[] = [
       fuelCapacity: '7.8 Liters'
     },
     features: ['Long-travel Suspension', 'Lightweight Frame', 'Digital Instrument Cluster', 'Assist/Slipper Clutch'],
+    // Adding missing colors property to satisfy the Product interface
     colors: ['Extreme Red']
   }
 ];

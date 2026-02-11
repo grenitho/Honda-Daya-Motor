@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { SalesPerson } from '../types.ts';
+import { SalesPerson } from '../types';
 
 interface HeroProps {
   salesInfo: SalesPerson;

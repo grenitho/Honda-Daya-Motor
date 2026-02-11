@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Promo, SalesPerson } from '../types.ts';
+import { Promo, SalesPerson } from '../types';
 
 interface PromoSectionProps {
   salesInfo: SalesPerson;
