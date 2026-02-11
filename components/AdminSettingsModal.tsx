@@ -2,6 +2,18 @@
 import React, { useState, useEffect } from 'react';
 import { SalesPerson, Promo, Product } from '../types';
 
+// Fungsi helper untuk btoa yang mendukung karakter spesial (UTF-8)
+const safeBtoa = (str: string) => {
+  try {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+      return String.fromCharCode(parseInt(p1, 16));
+    }));
+  } catch (e) {
+    console.error("Encoding error:", e);
+    return "";
+  }
+};
+
 interface AdminSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -41,9 +53,16 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
     const lightProducts = products.map(({ image, ...rest }) => rest);
     const lightPromos = promos.map(({ image, ...rest }) => rest);
 
-    const masterData = { dealerName: tempName, dealerAddress: tempAddress, products: lightProducts, promos: lightPromos };
-    setMasterUrl(`${baseUrl}?p=${btoa(JSON.stringify(masterData))}${remoteParam}&staff=true`);
-  }, [tempLogo, tempName, tempAddress, products, promos, tempRemoteUrl, isOpen]);
+    const masterData = { 
+      dealerName: tempName, 
+      dealerAddress: tempAddress, 
+      products: lightProducts, 
+      promos: lightPromos,
+      salesInfo: { name: tempSales.name, role: tempSales.role, whatsapp: tempSales.whatsapp, phone: tempSales.phone, email: tempSales.email } 
+    };
+    
+    setMasterUrl(`${baseUrl}?p=${safeBtoa(JSON.stringify(masterData))}${remoteParam}&staff=true`);
+  }, [tempLogo, tempName, tempAddress, products, promos, tempRemoteUrl, isOpen, tempSales]);
 
   const copy = (text: string, id: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -107,7 +126,6 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* NEW HERO BACKGROUND UPLOADER */}
               <div className="space-y-4">
                 <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest">Hero Background Image</label>
                 <div className="relative h-32 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center bg-gray-50 overflow-hidden group">
@@ -137,6 +155,16 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                   <input type="text" value={tempSales.heroHeadline} onChange={e => setTempSales({...tempSales, heroHeadline: e.target.value})} className="p-4 border rounded-xl text-xs font-black uppercase italic bg-white" placeholder="Headline" />
                 </div>
                 <textarea value={tempSales.heroIntro} onChange={e => setTempSales({...tempSales, heroIntro: e.target.value})} className="w-full p-4 border rounded-xl text-xs h-24 bg-white resize-none" placeholder="Intro Text" />
+              </div>
+
+              <div className="p-6 bg-gray-900 rounded-3xl space-y-4">
+                <h4 className="text-[10px] font-black text-white uppercase tracking-widest italic">Master Link (Include Staff Access)</h4>
+                <div className="flex gap-2">
+                  <input readOnly value={masterUrl} className="flex-grow p-3 bg-white/10 rounded-xl text-[8px] text-gray-400 outline-none" />
+                  <button onClick={() => copy(masterUrl, 'master')} className="px-6 bg-honda-red text-white rounded-xl text-[10px] font-bold uppercase">
+                    {copied === 'master' ? 'Tersalin' : 'Copy'}
+                  </button>
+                </div>
               </div>
             </div>
           )}

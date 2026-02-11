@@ -17,6 +17,18 @@ import { SALES_INFO as DEFAULT_SALES, PROMOS as DEFAULT_PROMOS, INITIAL_PRODUCTS
 
 type ViewState = 'home' | 'about' | 'contact';
 
+// Fungsi helper untuk men-decode base64 yang mendukung karakter spesial (UTF-8)
+const safeAtob = (str: string) => {
+  try {
+    return decodeURIComponent(Array.prototype.map.call(atob(str), (c: string) => {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+  } catch (e) {
+    console.error("Decoding error:", e);
+    return null;
+  }
+};
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -37,17 +49,37 @@ const App: React.FC = () => {
   const [remoteUrl, setRemoteUrl] = useState<string | null>(localStorage.getItem('honda_remote_url'));
   const [isSyncing, setIsSyncing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
 
   useEffect(() => {
     const initializeData = async () => {
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const urlRemote = urlParams.get('remote');
+        const encodedData = urlParams.get('p');
         const activeRemote = urlRemote || remoteUrl;
+        
+        // Mode Staff diaktifkan hanya jika ada parameter staff=true di URL
+        setIsStaff(urlParams.get('staff') === 'true');
 
+        // PRIORITAS 1: Data dari Link Jualan (Parameter 'p')
+        if (encodedData) {
+          const decoded = safeAtob(encodedData);
+          if (decoded) {
+            try {
+              const data = JSON.parse(decoded);
+              applyData(data);
+            } catch (e) {
+              console.error("Gagal parse data link:", e);
+            }
+          }
+        } 
+        
+        // PRIORITAS 2: Sync Cloud jika ada remote URL
         if (activeRemote) {
           await handleSyncRemote(activeRemote);
-        } else {
+        } else if (!encodedData) {
+          // PRIORITAS 3: Local Storage (hanya jika tidak ada data dari link 'p')
           const safeParse = (key: string, fallback: any) => {
             try {
               const item = localStorage.getItem(key);
@@ -97,7 +129,8 @@ const App: React.FC = () => {
     if (!data) return;
     if (data.products) setProducts(data.products);
     if (data.promos) setPromos(data.promos);
-    if (data.salesInfo) setSalesInfo(data.salesInfo);
+    // Jika data dari link 'p' menyertakan salesInfo, pastikan itu terpasang
+    if (data.salesInfo) setSalesInfo((prev) => ({ ...prev, ...data.salesInfo }));
     if (data.logo) setLogo(data.logo);
     if (data.heroBackground) setHeroBackground(data.heroBackground);
     if (data.dealerName) setDealerName(data.dealerName);
@@ -161,6 +194,7 @@ const App: React.FC = () => {
       <Navbar 
         onNavigate={handleNavigate} currentView={selectedProduct ? 'home' : currentView} 
         logo={logo} dealerName={dealerName} 
+        isStaff={isStaff}
         onOpenSettings={() => setIsAdminOpen(true)}
         onOpenSalesProfile={() => setIsSalesOpen(true)}
         onOpenPromos={() => setIsPromoOpen(true)}
