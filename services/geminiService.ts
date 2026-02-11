@@ -1,12 +1,13 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { GeminiBikeResponse } from "../types";
+import { GeminiBikeResponse } from "../types.ts";
 
-// Fungsi untuk inisialisasi AI secara aman
 const getAIClient = () => {
-  const apiKey = process.env.API_KEY;
+  // Pengecekan aman untuk lingkungan browser/hosting
+  const apiKey = typeof process !== 'undefined' && process.env ? process.env.API_KEY : null;
+  
   if (!apiKey) {
-    console.warn("PERINGATAN: API_KEY belum diset di Environment Variables.");
+    console.warn("API_KEY tidak ditemukan di environment variables.");
     return null;
   }
   return new GoogleGenAI({ apiKey });
@@ -14,21 +15,18 @@ const getAIClient = () => {
 
 export const generateBikeDetails = async (bikeName: string): Promise<GeminiBikeResponse> => {
   const ai = getAIClient();
-  
-  if (!ai) {
-    throw new Error("API Key Gemini tidak ditemukan. Harap hubungi admin.");
-  }
+  if (!ai) throw new Error("API Key belum dikonfigurasi.");
 
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
-    contents: `Provide detailed specifications and available official colors for the Honda motorcycle named "${bikeName}". Format the response as JSON.`,
+    contents: `Provide detailed specifications and official colors for Honda ${bikeName} in JSON format.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
         properties: {
           name: { type: Type.STRING },
-          price: { type: Type.STRING, description: "Estimated price in Indonesian Rupiah (IDR) starting with 'Rp '" },
+          price: { type: Type.STRING },
           category: { type: Type.STRING, enum: ['Matic', 'Sport', 'Cub', 'EV', 'Big Bike'] },
           description: { type: Type.STRING },
           specs: {
@@ -42,15 +40,8 @@ export const generateBikeDetails = async (bikeName: string): Promise<GeminiBikeR
             },
             required: ['engine', 'power', 'torque', 'transmission', 'fuelCapacity']
           },
-          features: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING }
-          },
-          colors: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-            description: "List of available color names, e.g., ['Matte Black', 'Candy Red']"
-          }
+          features: { type: Type.ARRAY, items: { type: Type.STRING } },
+          colors: { type: Type.ARRAY, items: { type: Type.STRING } }
         },
         required: ['name', 'price', 'category', 'description', 'specs', 'features', 'colors']
       }
@@ -58,8 +49,6 @@ export const generateBikeDetails = async (bikeName: string): Promise<GeminiBikeR
   });
 
   const text = response.text;
-  if (!text) {
-    throw new Error("Gemini API gagal memberikan respon.");
-  }
+  if (!text) throw new Error("Gagal mendapatkan data dari AI.");
   return JSON.parse(text.trim());
 };

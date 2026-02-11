@@ -8,33 +8,56 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
         .honda-red { color: #E4002B; }
         .bg-honda-red { background-color: #E4002B; }
         .border-honda-red { border-color: #E4002B; }
-        
-        /* Smooth scrolling */
         html { scroll-behavior: smooth; }
-        
-        /* Hide scrollbar for Chrome, Safari and Opera */
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        /* Hide scrollbar for IE, Edge and Firefox */
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Loading animation */
+        #initial-loader {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: #fff;
+        }
+        .loader-h {
+            font-size: 4rem;
+            font-weight: 900;
+            font-style: italic;
+            color: #E4002B;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
     </style>
-<script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4",
-    "@google/genai": "https://esm.sh/@google/genai@^1.40.0"
-  }
-}
-</script>
-<!-- Memastikan index.tsx dipanggil sebagai entry point -->
-<script type="module" src="./index.tsx"></script>
+    <script type="importmap">
+    {
+      "imports": {
+        "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+        "react/": "https://esm.sh/react@^19.2.4/",
+        "react": "https://esm.sh/react@^19.2.4",
+        "@google/genai": "https://esm.sh/@google/genai@^1.40.0"
+      }
+    }
+    </script>
 </head>
 <body class="bg-gray-50 text-gray-900">
-    <div id="root"></div>
+    <div id="root">
+        <div id="initial-loader">
+            <div class="loader-h">H</div>
+            <p style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: #ccc; margin-top: 10px;">
+                Memuat Dealer Honda...
+            </p>
+        </div>
+    </div>
+    <script type="module" src="./index.tsx"></script>
 </body>
 </html>
