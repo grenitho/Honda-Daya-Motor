@@ -1,0 +1,7 @@
+{
+  "name": "Honda Dealer Dashboard & Landing Page",
+  "description": "A premium Honda motorcycle dealer landing page with interactive product management and AI-powered specification generation.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
