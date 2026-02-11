@@ -36,31 +36,42 @@ const App: React.FC = () => {
 
   const [remoteUrl, setRemoteUrl] = useState<string | null>(localStorage.getItem('honda_remote_url'));
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     const initializeData = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlRemote = urlParams.get('remote');
-      const activeRemote = urlRemote || remoteUrl;
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlRemote = urlParams.get('remote');
+        const activeRemote = urlRemote || remoteUrl;
 
-      if (activeRemote) {
-        await handleSyncRemote(activeRemote);
-      } else {
-        const savedProducts = localStorage.getItem('honda_catalog');
-        const savedPromos = localStorage.getItem('honda_promos');
-        const savedSales = localStorage.getItem('honda_sales_info');
-        const savedLogo = localStorage.getItem('honda_dealer_logo');
-        const savedHeroBg = localStorage.getItem('honda_hero_bg');
-        const savedName = localStorage.getItem('honda_dealer_name');
-        const savedAddress = localStorage.getItem('honda_dealer_address');
+        if (activeRemote) {
+          await handleSyncRemote(activeRemote);
+        } else {
+          // Robust loading from localStorage
+          const safeParse = (key: string, fallback: any) => {
+            try {
+              const item = localStorage.getItem(key);
+              return item ? JSON.parse(item) : fallback;
+            } catch (e) {
+              console.warn(`Gagal memuat ${key}, menggunakan default.`);
+              return fallback;
+            }
+          };
 
-        if (savedProducts) setProducts(JSON.parse(savedProducts));
-        if (savedPromos) setPromos(JSON.parse(savedPromos));
-        if (savedSales) setSalesInfo(JSON.parse(savedSales));
-        if (savedLogo) setLogo(savedLogo);
-        if (savedHeroBg) setHeroBackground(savedHeroBg);
-        if (savedName) setDealerName(savedName);
-        if (savedAddress) setDealerAddress(savedAddress);
+          setProducts(safeParse('honda_catalog', INITIAL_PRODUCTS));
+          setPromos(safeParse('honda_promos', DEFAULT_PROMOS));
+          setSalesInfo(safeParse('honda_sales_info', DEFAULT_SALES));
+          
+          setLogo(localStorage.getItem('honda_dealer_logo') || DEFAULT_LOGO_URL);
+          setHeroBackground(localStorage.getItem('honda_hero_bg') || DEFAULT_HERO_BG_URL);
+          setDealerName(localStorage.getItem('honda_dealer_name') || 'HONDA DAYA MOTOR SUNGAILIAT');
+          setDealerAddress(localStorage.getItem('honda_dealer_address') || 'Jl. Batin Tikal No.423, Karya Makmur, Kec. Pemali, Kabupaten Bangka, Kepulauan Bangka Belitung 33215');
+        }
+      } catch (err) {
+        console.error("Initialization Error:", err);
+      } finally {
+        setIsInitialized(true);
       }
     };
 
@@ -85,6 +96,7 @@ const App: React.FC = () => {
   };
 
   const applyData = (data: any) => {
+    if (!data) return;
     if (data.products) setProducts(data.products);
     if (data.promos) setPromos(data.promos);
     if (data.salesInfo) setSalesInfo(data.salesInfo);
@@ -119,6 +131,15 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  if (!isInitialized) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-white">
+        <div className="loader-h text-6xl font-black italic text-honda-red animate-pulse">H</div>
+        <p className="mt-4 text-[10px] font-black uppercase tracking-widest text-gray-300">Memulihkan Data Dealer...</p>
+      </div>
+    );
+  }
+
   const renderContent = () => {
     if (selectedProduct) {
       return <ProductDetail product={selectedProduct} salesInfo={salesInfo} onBack={() => setSelectedProduct(null)} />;
@@ -130,7 +151,7 @@ const App: React.FC = () => {
         <Home 
           products={products} 
           promos={promos} 
-          salesInfo={{...salesInfo, heroBackground}} // Pass background through salesInfo for simpler props
+          salesInfo={{...salesInfo, heroBackground}} 
           onSelectProduct={handleSelectProduct} 
         />
       );

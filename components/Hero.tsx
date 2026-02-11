@@ -3,13 +3,16 @@ import React from 'react';
 import { SalesPerson } from '../types';
 
 interface HeroProps {
-  // Fix: Simplified the type intersection now that SalesPerson interface includes heroBackground
   salesInfo: SalesPerson;
 }
 
 const Hero: React.FC<HeroProps> = ({ salesInfo }) => {
+  // Defensive check: pastikan salesInfo ada
+  if (!salesInfo) return <div className="h-[700px] bg-black"></div>;
+
   // Membagi headline berdasarkan simbol '|' untuk kontrol baris yang sempurna
-  const parts = salesInfo.heroHeadline.split('|');
+  const headline = salesInfo.heroHeadline || 'SALAM SATU | HATI';
+  const parts = headline.split('|');
   const line1 = parts[0]?.trim() || '';
   const line2 = parts[1]?.trim() || '';
 
@@ -39,8 +42,8 @@ const Hero: React.FC<HeroProps> = ({ salesInfo }) => {
             </span>
           </h1>
           <p className="text-lg md:text-xl max-w-md text-gray-300 mb-10 font-light leading-relaxed">
-            Hai, Nama Saya <span className="font-bold text-white underline decoration-honda-red underline-offset-4">{salesInfo.name}</span>. 
-            {salesInfo.heroIntro}
+            Hai, Nama Saya <span className="font-bold text-white underline decoration-honda-red underline-offset-4">{salesInfo.name || 'Sales'}</span>. 
+            {salesInfo.heroIntro || ''}
           </p>
           <div className="flex flex-wrap gap-4">
             <a href="#katalog" className="bg-honda-red px-8 py-4 font-bold uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-900/40 text-center">
@@ -63,7 +66,7 @@ const Hero: React.FC<HeroProps> = ({ salesInfo }) => {
             <div className="absolute -inset-1 bg-gradient-to-r from-honda-red to-red-800 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
             <div className="relative bg-black/40 backdrop-blur-md p-4 rounded-2xl border border-white/10">
               <img 
-                src={salesInfo.photo} 
+                src={salesInfo.photo || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&h=400&auto=format&fit=crop"} 
                 alt={salesInfo.name}
                 className="w-72 h-96 object-cover rounded-xl grayscale hover:grayscale-0 transition-all duration-500"
               />
