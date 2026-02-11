@@ -2,21 +2,12 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { GeminiBikeResponse } from "../types.ts";
 
-const getAIClient = () => {
-  // Pengecekan aman untuk lingkungan browser/hosting
-  const apiKey = typeof process !== 'undefined' && process.env ? process.env.API_KEY : null;
-  
-  if (!apiKey) {
-    console.warn("API_KEY tidak ditemukan di environment variables.");
-    return null;
-  }
-  return new GoogleGenAI({ apiKey });
-};
+// Fix: Always use new GoogleGenAI({ apiKey: process.env.API_KEY }) as per guidelines
+// Fix: The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateBikeDetails = async (bikeName: string): Promise<GeminiBikeResponse> => {
-  const ai = getAIClient();
-  if (!ai) throw new Error("API Key belum dikonfigurasi.");
-
+  // Fix: Use the ai instance directly as recommended in the initialization guidelines
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `Provide detailed specifications and official colors for Honda ${bikeName} in JSON format.`,
@@ -48,6 +39,7 @@ export const generateBikeDetails = async (bikeName: string): Promise<GeminiBikeR
     }
   });
 
+  // Fix: Access response.text property directly (not as a method call response.text())
   const text = response.text;
   if (!text) throw new Error("Gagal mendapatkan data dari AI.");
   return JSON.parse(text.trim());

@@ -1,19 +1,33 @@
 
 import { Product, SalesPerson, Promo } from './types';
 
+/**
+ * TIPS UNTUK LOGO & BACKGROUND:
+ * 1. Upload file Anda ke https://imgbb.com/
+ * 2. Setelah upload, pilih menu "Direct Link"
+ * 3. Copy link tersebut (biasanya berakhiran .png atau .jpg)
+ * 4. Ganti URL di bawah ini dengan link tersebut.
+ */
+export const DEFAULT_LOGO_URL = 'https://i.ibb.co.com/PG2HkxGr/LOGO-DM-PURE.png'; 
+export const DEFAULT_HERO_BG_URL = 'https://i.ibb.co.com/d4hY2f7y/Whats-App-Image-2026-02-11-at-20-07-39.jpg';
+
 export const SALES_INFO: SalesPerson = {
-  name: 'Budi Hartono', 
-  role: 'Senior Sales Consultant', 
+  name: 'SYAMILA MUTHIA DHELVINA', 
+  role: 'SALES DIGITAL', 
   photo: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&h=400&auto=format&fit=crop', 
-  whatsapp: '628123456789', 
-  phone: '+62 812 3456 789', 
-  email: 'budi.honda@example.com',
-  bio: 'Saya siap membantu Anda mendapatkan unit Honda impian dengan proses yang transparan, DP rendah, dan cicilan yang bisa dinegosiasikan. Spesialis Big Bike & Matic Premium.',
-  experience: '8+ Tahun',
+  whatsapp: '6285758442561', 
+  phone: '+62 85758442561', 
+  email: 'syamilavina33@gmail.com',
+  heroBadge: 'SALES DIGITAL HONDA',
+  // Kita gunakan simbol '|' untuk menandakan baris baru agar titik-titik menempel di kata HATI
+  heroHeadline: 'SALAM SATU | HATI.....', 
+  heroIntro: "Selamat datang di dealer resmi Honda Daya Motor Sungailiat. Saya siap membantu Anda memilih Motor Honda terbaik dengan penawaran spesial.",
+  bio: 'Saya siap membantu Anda mendapatkan Motor Honda impian dengan proses yang transparan, DP rendah, dan cicilan yang bisa dinegosiasikan. Spesialis Big Bike & Matic Premium.',
+  experience: '5+ Tahun',
   facebook: 'https://facebook.com',
   instagram: 'https://instagram.com',
   tiktok: 'https://tiktok.com',
-  personalizedPromo: 'Dapatkan tambahan Jaket Eksklusif khusus pemesanan lewat link ini!'
+  personalizedPromo: 'Dapatkan tambahan Kaos HONDA Eksklusif khusus pemesanan lewat link ini!'
 };
 
 export const PROMOS: Promo[] = [

@@ -25,7 +25,7 @@ const SalesProfile: React.FC<SalesProfileProps> = ({ salesInfo }) => {
           </div>
 
           <div className="lg:col-span-7">
-            <span className="text-honda-red font-bold uppercase tracking-[0.3em] text-xs mb-4 block">Personal Consultant</span>
+            <span className="text-honda-red font-bold uppercase tracking-[0.3em] text-xs mb-4 block">Sales Digital HONDA</span>
             <h2 className="text-4xl md:text-5xl font-black italic tracking-tighter uppercase mb-8 leading-tight">
               Kenapa Memilih Beli Lewat <span className="text-honda-red">Saya?</span>
             </h2>

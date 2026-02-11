@@ -3,15 +3,21 @@ import React from 'react';
 import { SalesPerson } from '../types';
 
 interface HeroProps {
+  // Fix: Simplified the type intersection now that SalesPerson interface includes heroBackground
   salesInfo: SalesPerson;
 }
 
 const Hero: React.FC<HeroProps> = ({ salesInfo }) => {
+  // Membagi headline berdasarkan simbol '|' untuk kontrol baris yang sempurna
+  const parts = salesInfo.heroHeadline.split('|');
+  const line1 = parts[0]?.trim() || '';
+  const line2 = parts[1]?.trim() || '';
+
   return (
     <section className="relative h-[700px] flex items-center bg-black overflow-hidden">
-      <div className="absolute inset-0 opacity-50">
+      <div className="absolute inset-0 opacity-70">
         <img 
-          src="https://images.unsplash.com/photo-1558981806-ec527fa84c39?q=80&w=2070&auto=format&fit=crop" 
+          src={salesInfo.heroBackground || "https://images.unsplash.com/photo-1558981806-ec527fa84c39?q=80&w=2070&auto=format&fit=crop"} 
           alt="Honda Hero" 
           className="w-full h-full object-cover"
         />
@@ -22,21 +28,31 @@ const Hero: React.FC<HeroProps> = ({ salesInfo }) => {
         <div>
           <div className="flex items-center gap-4 mb-8">
             <div className="w-12 h-0.5 bg-honda-red"></div>
-            <span className="uppercase tracking-[0.4em] text-xs font-bold text-honda-red">Authorized Honda Consultant</span>
+            <span className="uppercase tracking-[0.4em] text-xs font-bold text-honda-red">
+              {salesInfo.heroBadge || 'Authorized Honda Consultant'}
+            </span>
           </div>
-          <h1 className="text-5xl md:text-7xl font-black italic tracking-tighter leading-none mb-6">
-            DREAM IT. <br />
-            <span className="text-honda-red">RIDE IT.</span>
+          <h1 className="text-5xl md:text-7xl font-black italic tracking-tighter leading-none mb-6 uppercase">
+            {line1} <br />
+            <span className="text-honda-red">
+              {line2}
+            </span>
           </h1>
           <p className="text-lg md:text-xl max-w-md text-gray-300 mb-10 font-light leading-relaxed">
-            Hi, I'm <span className="font-bold text-white underline decoration-honda-red underline-offset-4">{salesInfo.name}</span>. 
-            I'm here to help you navigate the best choices for your next Honda with special deals just for you.
+            Hai, Nama Saya <span className="font-bold text-white underline decoration-honda-red underline-offset-4">{salesInfo.name}</span>. 
+            {salesInfo.heroIntro}
           </p>
           <div className="flex flex-wrap gap-4">
-            <button className="bg-honda-red px-8 py-4 font-bold uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-900/40">
+            <a href="#katalog" className="bg-honda-red px-8 py-4 font-bold uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-900/40 text-center">
               Lihat Katalog
-            </button>
-            <button className="border border-white/30 backdrop-blur-sm px-8 py-4 font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-all">
+            </a>
+            <button 
+              onClick={() => {
+                const message = encodeURIComponent(`Halo ${salesInfo.name}, saya ingin konsultasi mengenai unit Honda.`);
+                window.open(`https://wa.me/${salesInfo.whatsapp}?text=${message}`, '_blank');
+              }}
+              className="border border-white/30 backdrop-blur-sm px-8 py-4 font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-all"
+            >
               Hubungi Saya
             </button>
           </div>

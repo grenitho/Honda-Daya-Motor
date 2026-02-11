@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { SalesPerson } from '../types';
 
 interface ContactProps {
@@ -7,7 +7,30 @@ interface ContactProps {
 }
 
 const Contact: React.FC<ContactProps> = ({ salesInfo }) => {
-  const waUrl = `https://wa.me/${salesInfo.whatsapp}?text=${encodeURIComponent(`Halo ${salesInfo.name}, saya ingin bertanya tentang promo unit Honda.`)}`;
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    message: ''
+  });
+
+  const waUrlBase = `https://wa.me/${salesInfo.whatsapp}`;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name || !formData.phone || !formData.message) {
+      alert('Mohon lengkapi semua data formulir.');
+      return;
+    }
+
+    const text = `Halo ${salesInfo.name}, saya ingin bertanya:\n\nNama: ${formData.name}\nNo HP: ${formData.phone}\nPesan: ${formData.message}`;
+    const fullWaUrl = `${waUrlBase}?text=${encodeURIComponent(text)}`;
+    window.open(fullWaUrl, '_blank');
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -43,11 +66,13 @@ const Contact: React.FC<ContactProps> = ({ salesInfo }) => {
               </div>
               <h4 className="font-black italic uppercase tracking-tighter mb-2">Lokasi Dealer</h4>
               <p className="text-gray-500 text-sm mb-4">Kunjungi showroom kami untuk melihat unit langsung.</p>
-              <p className="text-gray-900 font-bold">Jl. Astra Honda No. 1, Jakarta</p>
+              <p className="text-gray-900 font-bold uppercase text-[10px] tracking-widest leading-relaxed">
+                Silakan lihat peta lokasi di bagian bawah halaman ini untuk panduan rute.
+              </p>
             </div>
 
             <a 
-              href={waUrl}
+              href={`${waUrlBase}?text=${encodeURIComponent(`Halo ${salesInfo.name}, saya ingin bertanya tentang promo unit Honda.`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="block p-8 bg-honda-red text-white rounded-2xl shadow-xl shadow-red-200 text-center group overflow-hidden relative"
@@ -60,53 +85,56 @@ const Contact: React.FC<ContactProps> = ({ salesInfo }) => {
             </a>
           </div>
 
-          {/* Dummy Contact Form */}
+          {/* Active Contact Form */}
           <div className="lg:col-span-2 bg-white border border-gray-100 p-10 rounded-3xl shadow-sm">
             <h3 className="text-2xl font-black italic uppercase tracking-tighter mb-8">Kirim <span className="text-honda-red">Pesan</span></h3>
-            <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Nama Lengkap</label>
-                  <input type="text" placeholder="Masukkan nama Anda" className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded focus:ring-2 focus:ring-honda-red focus:border-transparent outline-none transition-all" />
+                  <input 
+                    type="text" 
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="Masukkan nama Anda" 
+                    required
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded focus:ring-2 focus:ring-honda-red focus:border-transparent outline-none transition-all" 
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Nomor Telepon</label>
-                  <input type="tel" placeholder="Contoh: 0812..." className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded focus:ring-2 focus:ring-honda-red focus:border-transparent outline-none transition-all" />
+                  <input 
+                    type="tel" 
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="Contoh: 0812..." 
+                    required
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded focus:ring-2 focus:ring-honda-red focus:border-transparent outline-none transition-all" 
+                  />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tipe Motor Diminati</label>
-                <select className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded focus:ring-2 focus:ring-honda-red focus:border-transparent outline-none transition-all appearance-none">
-                  <option>Pilih Tipe Motor</option>
-                  <option>Matic</option>
-                  <option>Sport</option>
-                  <option>Cub</option>
-                  <option>Big Bike</option>
-                </select>
-              </div>
-              <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Pesan</label>
-                <textarea rows={4} placeholder="Ceritakan kebutuhan Anda..." className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded focus:ring-2 focus:ring-honda-red focus:border-transparent outline-none transition-all resize-none"></textarea>
+                <textarea 
+                  name="message"
+                  value={formData.message}
+                  onChange={handleInputChange}
+                  rows={4} 
+                  placeholder="Ceritakan kebutuhan Anda..." 
+                  required
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded focus:ring-2 focus:ring-honda-red focus:border-transparent outline-none transition-all resize-none"
+                ></textarea>
               </div>
-              <button className="w-full md:w-auto bg-gray-900 text-white px-12 py-4 rounded font-bold uppercase tracking-widest hover:bg-honda-red transition-all">
+              <button 
+                type="submit"
+                className="w-full md:w-auto bg-gray-900 text-white px-12 py-4 rounded font-bold uppercase tracking-widest hover:bg-honda-red transition-all shadow-lg active:scale-95 transition-transform"
+              >
                 Kirim Pesan Sekarang
               </button>
             </form>
           </div>
-        </div>
-
-        {/* Dummy Map Placeholder */}
-        <div className="mt-16 h-96 bg-gray-100 rounded-[2rem] overflow-hidden relative border border-gray-200">
-           <img src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?q=80&w=2066" className="w-full h-full object-cover opacity-50 grayscale" alt="map" />
-           <div className="absolute inset-0 flex items-center justify-center">
-             <div className="bg-white p-6 rounded-2xl shadow-2xl border border-honda-red text-center">
-               <div className="w-10 h-10 bg-honda-red rounded-full flex items-center justify-center text-white mx-auto mb-3">
-                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" /></svg>
-               </div>
-               <p className="font-bold uppercase tracking-widest text-xs mb-1">Our Showroom</p>
-               <p className="text-gray-500 text-sm">Main Branch, Jakarta City</p>
-             </div>
-           </div>
         </div>
       </div>
     </div>

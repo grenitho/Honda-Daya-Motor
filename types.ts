@@ -48,9 +48,14 @@ export interface SalesPerson {
   phone: string;
   email: string;
   bio: string;
+  heroBadge: string;    // Teks kecil di atas headline (e.g. Authorized Honda Consultant)
+  heroHeadline: string; // Teks besar headline (e.g. DREAM IT. RIDE IT.)
+  heroIntro: string;    // Teks perkenalan paragraf
   experience: string;
   facebook?: string;
   instagram?: string;
   tiktok?: string;
   personalizedPromo?: string;
+  // Fix: Added heroBackground to SalesPerson interface to allow passing it within the salesInfo object in App.tsx
+  heroBackground?: string;
 }

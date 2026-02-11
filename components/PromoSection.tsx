@@ -87,7 +87,13 @@ const PromoSection: React.FC<PromoSectionProps> = ({ salesInfo, promos }) => {
                 <p className="text-red-100 text-sm font-medium">"{salesInfo.personalizedPromo}"</p>
               </div>
             </div>
-            <button className="bg-white text-honda-red px-8 py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-gray-100 transition-all shrink-0">
+            <button 
+              onClick={() => {
+                const msg = encodeURIComponent(`Halo ${salesInfo.name}, saya ingin konsultasi mengenai Bonus: ${salesInfo.personalizedPromo}`);
+                window.open(`https://wa.me/${salesInfo.whatsapp}?text=${msg}`, '_blank');
+              }}
+              className="bg-white text-gray-900 px-8 py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-gray-100 transition-all shrink-0 shadow-lg active:scale-95"
+            >
               Konsultasi Bonus
             </button>
           </div>
