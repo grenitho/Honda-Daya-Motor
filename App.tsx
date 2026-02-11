@@ -48,13 +48,12 @@ const App: React.FC = () => {
         if (activeRemote) {
           await handleSyncRemote(activeRemote);
         } else {
-          // Robust loading from localStorage
           const safeParse = (key: string, fallback: any) => {
             try {
               const item = localStorage.getItem(key);
-              return item ? JSON.parse(item) : fallback;
+              if (!item) return fallback;
+              return JSON.parse(item);
             } catch (e) {
-              console.warn(`Gagal memuat ${key}, menggunakan default.`);
               return fallback;
             }
           };
@@ -69,7 +68,7 @@ const App: React.FC = () => {
           setDealerAddress(localStorage.getItem('honda_dealer_address') || 'Jl. Batin Tikal No.423, Karya Makmur, Kec. Pemali, Kabupaten Bangka, Kepulauan Bangka Belitung 33215');
         }
       } catch (err) {
-        console.error("Initialization Error:", err);
+        console.error("Initialization error:", err);
       } finally {
         setIsInitialized(true);
       }
@@ -84,7 +83,6 @@ const App: React.FC = () => {
       const response = await fetch(url + '?nocache=' + Date.now());
       if (!response.ok) throw new Error("Gagal mengambil data cloud");
       const remoteData = await response.json();
-      
       applyData(remoteData);
       setRemoteUrl(url);
       localStorage.setItem('honda_remote_url', url);
@@ -134,8 +132,8 @@ const App: React.FC = () => {
   if (!isInitialized) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-white">
-        <div className="loader-h text-6xl font-black italic text-honda-red animate-pulse">H</div>
-        <p className="mt-4 text-[10px] font-black uppercase tracking-widest text-gray-300">Memulihkan Data Dealer...</p>
+        <div className="text-6xl font-black italic text-honda-red animate-pulse">H</div>
+        <p className="mt-4 text-[10px] font-black uppercase tracking-widest text-gray-300">Menyiapkan Dealer...</p>
       </div>
     );
   }
@@ -172,14 +170,13 @@ const App: React.FC = () => {
       <main className="flex-grow">
         {isSyncing && (
           <div className="bg-blue-600 text-white text-[10px] font-bold text-center py-1 uppercase tracking-widest animate-pulse">
-            Sinkronisasi Data Pusat...
+            Sinkronisasi Data...
           </div>
         )}
         {renderContent()}
       </main>
 
       <MapSection dealerName={dealerName} address={dealerAddress} />
-      
       <Footer dealerName={dealerName} salesInfo={salesInfo} />
       <FloatingContact salesInfo={salesInfo} />
       
@@ -191,7 +188,6 @@ const App: React.FC = () => {
         onSave={handleSaveAdminSettings}
         remoteUrl={remoteUrl} onSyncRemote={handleSyncRemote}
       />
-
       <SalesProfileModal 
         isOpen={isSalesOpen} onClose={() => setIsSalesOpen(false)}
         salesInfo={salesInfo} onSave={(newSales) => {
@@ -200,22 +196,16 @@ const App: React.FC = () => {
         }}
         remoteUrl={remoteUrl}
       />
-
       <AdminPromoModal 
-        isOpen={isPromoOpen}
-        onClose={() => setIsPromoOpen(false)}
-        promos={promos}
-        onSave={(newPromos) => {
+        isOpen={isPromoOpen} onClose={() => setIsPromoOpen(false)}
+        promos={promos} onSave={(newPromos) => {
           setPromos(newPromos);
           localStorage.setItem('honda_promos', JSON.stringify(newPromos));
         }}
       />
-
       <AdminProductModal 
-        isOpen={isCatalogOpen}
-        onClose={() => setIsCatalogOpen(false)}
-        products={products}
-        onSave={(newProducts) => {
+        isOpen={isCatalogOpen} onClose={() => setIsCatalogOpen(false)}
+        products={products} onSave={(newProducts) => {
           setProducts(newProducts);
           localStorage.setItem('honda_catalog', JSON.stringify(newProducts));
         }}
