@@ -49,6 +49,16 @@ const Footer: React.FC<FooterProps> = ({ dealerName, salesInfo }) => {
                   IG
                 </a>
               )}
+              {salesInfo.tiktok && (
+                <a 
+                  href={salesInfo.tiktok} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="w-10 h-10 border border-gray-800 rounded flex items-center justify-center hover:bg-honda-red hover:border-honda-red transition-all cursor-pointer font-bold text-xs"
+                >
+                  TK
+                </a>
+              )}
             </div>
           </div>
 

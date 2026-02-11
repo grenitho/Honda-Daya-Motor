@@ -18,7 +18,7 @@ export interface Product {
   description: string;
   specs: ProductSpecs;
   features: string[];
-  colors: string[]; // New field for color availability
+  colors: string[];
 }
 
 export interface GeminiBikeResponse {
@@ -28,7 +28,7 @@ export interface GeminiBikeResponse {
   description: string;
   specs: ProductSpecs;
   features: string[];
-  colors: string[]; // AI will also suggest colors
+  colors: string[];
 }
 
 export interface Promo {
@@ -51,5 +51,6 @@ export interface SalesPerson {
   experience: string;
   facebook?: string;
   instagram?: string;
+  tiktok?: string;
   personalizedPromo?: string;
 }
