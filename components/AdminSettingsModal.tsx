@@ -71,6 +71,29 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
     });
   };
 
+  const handleDownloadConfig = () => {
+    const fullConfig = {
+      dealerName: tempName,
+      dealerAddress: tempAddress,
+      logo: tempLogo,
+      heroBackground: tempHeroBg,
+      salesInfo: tempSales,
+      products: products,
+      promos: promos,
+      exportedAt: new Date().toISOString()
+    };
+
+    const blob = new Blob([JSON.stringify(fullConfig, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `honda-dealer-config-${tempName.toLowerCase().replace(/\s+/g, '-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -172,16 +195,53 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
           {activeTab === 'cloud' && (
             <div className="space-y-8 animate-in fade-in duration-500">
               <div className="p-8 bg-blue-50 border border-blue-100 rounded-[2.5rem] space-y-6">
-                <h3 className="text-sm font-black uppercase italic text-blue-900">Cloud Sync</h3>
-                <input 
-                  type="text" 
-                  value={tempRemoteUrl} 
-                  onChange={e => setTempRemoteUrl(e.target.value)} 
-                  placeholder="URL Raw JSON" 
-                  className="w-full p-4 border rounded-xl text-[10px] bg-white outline-none"
-                />
+                <div className="flex justify-between items-start">
+                  <h3 className="text-sm font-black uppercase italic text-blue-900">Cloud Sync</h3>
+                  <button 
+                    onClick={handleDownloadConfig}
+                    className="flex items-center gap-2 text-[9px] font-black text-gray-500 uppercase tracking-widest hover:text-honda-red transition-colors"
+                    title="Simpan data ke file JSON untuk diupload ke Gist"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download Config JSON
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  <p className="text-[10px] text-blue-800 font-medium leading-relaxed">
+                    1. Klik tombol <strong>Download Config JSON</strong> di atas.<br/>
+                    2. Upload file tersebut ke <strong>GitHub Gist</strong> atau server JSON Anda.<br/>
+                    3. Salin URL Raw-nya dan tempel di bawah ini untuk sinkronisasi.
+                  </p>
+                  
+                  <input 
+                    type="text" 
+                    value={tempRemoteUrl} 
+                    onChange={e => setTempRemoteUrl(e.target.value)} 
+                    placeholder="Contoh: https://gist.githubusercontent.com/user/raw/file.json" 
+                    className="w-full p-4 border rounded-xl text-[10px] bg-white outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
+
                 <div className="flex gap-4">
-                  <button onClick={() => onSyncRemote(tempRemoteUrl)} className="flex-1 bg-blue-600 text-white py-4 rounded-xl font-bold uppercase text-[10px]">Connect</button>
+                  <button 
+                    onClick={() => onSyncRemote(tempRemoteUrl)} 
+                    className="flex-1 bg-blue-600 text-white py-4 rounded-xl font-bold uppercase text-[10px] shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+                  >
+                    Connect & Sync
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
+                <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-2">Status Saat Ini</h4>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${remoteUrl ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`}></div>
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">
+                    {remoteUrl ? `Tersambung ke Cloud` : 'Berjalan di Penyimpanan Lokal (Offline)'}
+                  </span>
                 </div>
               </div>
             </div>
