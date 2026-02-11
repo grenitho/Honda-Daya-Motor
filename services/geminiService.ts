@@ -2,10 +2,23 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { GeminiBikeResponse } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Fungsi untuk inisialisasi AI secara aman
+const getAIClient = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.warn("PERINGATAN: API_KEY belum diset di Environment Variables.");
+    return null;
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 export const generateBikeDetails = async (bikeName: string): Promise<GeminiBikeResponse> => {
-  // Use gemini-3-pro-preview for complex reasoning and structured JSON output tasks
+  const ai = getAIClient();
+  
+  if (!ai) {
+    throw new Error("API Key Gemini tidak ditemukan. Harap hubungi admin.");
+  }
+
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `Provide detailed specifications and available official colors for the Honda motorcycle named "${bikeName}". Format the response as JSON.`,
@@ -44,10 +57,9 @@ export const generateBikeDetails = async (bikeName: string): Promise<GeminiBikeR
     }
   });
 
-  // Extract text content directly from the .text property of the response object
   const text = response.text;
   if (!text) {
-    throw new Error("Gemini API failed to return content.");
+    throw new Error("Gemini API gagal memberikan respon.");
   }
   return JSON.parse(text.trim());
 };
