@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { SalesPerson, Promo, Product } from '../types';
+import { SalesPerson, Promo, Product } from '../types.ts';
 
 interface AdminSettingsModalProps {
   isOpen: boolean;
