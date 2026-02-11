@@ -1,5 +1,5 @@
 
-import { Product, SalesPerson, Promo } from './types.js';
+import { Product, SalesPerson, Promo } from './types.ts';
 
 export const SALES_INFO: SalesPerson = {
   name: 'Budi Hartono', 

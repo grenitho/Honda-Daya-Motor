@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { generateBikeDetails } from '../services/geminiService.js';
-import { Product, ProductSpecs } from '../types.js';
+import { generateBikeDetails } from '../services/geminiService.ts';
+import { Product, ProductSpecs } from '../types.ts';
 
 interface UploadModalProps {
   isOpen: boolean;
