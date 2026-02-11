@@ -1,22 +1,10 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { GeminiBikeResponse } from "../types.ts";
+import { GeminiBikeResponse } from "../types.js";
 
-const getAIClient = () => {
-  // Pengecekan aman untuk lingkungan browser/hosting
-  const apiKey = typeof process !== 'undefined' && process.env ? process.env.API_KEY : null;
-  
-  if (!apiKey) {
-    console.warn("API_KEY tidak ditemukan di environment variables.");
-    return null;
-  }
-  return new GoogleGenAI({ apiKey });
-};
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateBikeDetails = async (bikeName: string): Promise<GeminiBikeResponse> => {
-  const ai = getAIClient();
-  if (!ai) throw new Error("API Key belum dikonfigurasi.");
-
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `Provide detailed specifications and official colors for Honda ${bikeName} in JSON format.`,

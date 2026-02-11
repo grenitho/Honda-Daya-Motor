@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { Product } from '../types.ts';
-import UploadModal from './UploadModal.tsx';
+import { Product } from '../types.js';
+import UploadModal from './UploadModal.js';
 
 interface AdminProductModalProps {
   isOpen: boolean;

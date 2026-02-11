@@ -1,15 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
-import Navbar from './components/Navbar.tsx';
-import Footer from './components/Footer.tsx';
-import Home from './pages/Home.tsx';
-import About from './pages/About.tsx';
-import Contact from './pages/Contact.tsx';
-import ProductDetail from './pages/ProductDetail.tsx';
-import FloatingContact from './components/FloatingContact.tsx';
-import AdminSettingsModal from './components/AdminSettingsModal.tsx';
-import { Product, SalesPerson, Promo } from './types.ts';
-import { SALES_INFO as DEFAULT_SALES, PROMOS as DEFAULT_PROMOS, INITIAL_PRODUCTS } from './constants.ts';
+import Navbar from './components/Navbar.js';
+import Footer from './components/Footer.js';
+import Home from './pages/Home.js';
+import About from './pages/About.js';
+import Contact from './pages/Contact.js';
+import ProductDetail from './pages/ProductDetail.js';
+import FloatingContact from './components/FloatingContact.js';
+import AdminSettingsModal from './components/AdminSettingsModal.js';
+import { Product, SalesPerson, Promo } from './types.js';
+import { SALES_INFO as DEFAULT_SALES, PROMOS as DEFAULT_PROMOS, INITIAL_PRODUCTS } from './constants.js';
 
 type ViewState = 'home' | 'about' | 'contact';
 

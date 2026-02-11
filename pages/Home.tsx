@@ -1,13 +1,13 @@
 
 import React, { useState } from 'react';
-import Hero from '../components/Hero.tsx';
-import ProductCard from '../components/ProductCard.tsx';
-import SalesProfile from '../components/SalesProfile.tsx';
-import PromoSection from '../components/PromoSection.tsx';
-import AdminPromoModal from '../components/AdminPromoModal.tsx';
-import AdminProductModal from '../components/AdminProductModal.tsx';
-import { CATEGORIES } from '../constants.ts';
-import { Product, SalesPerson, Promo } from '../types.ts';
+import Hero from '../components/Hero.js';
+import ProductCard from '../components/ProductCard.js';
+import SalesProfile from '../components/SalesProfile.js';
+import PromoSection from '../components/PromoSection.js';
+import AdminPromoModal from '../components/AdminPromoModal.js';
+import AdminProductModal from '../components/AdminProductModal.js';
+import { CATEGORIES } from '../constants.js';
+import { Product, SalesPerson, Promo } from '../types.js';
 
 interface HomeProps {
   products: Product[];
