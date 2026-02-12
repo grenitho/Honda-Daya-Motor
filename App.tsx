@@ -44,6 +44,8 @@ const App: React.FC = () => {
   const [storyCity, setStoryCity] = useState<string>(DEFAULT_STORY.city);
   const [storyText1, setStoryText1] = useState<string>(DEFAULT_STORY.text1);
   const [storyText2, setStoryText2] = useState<string>(DEFAULT_STORY.text2);
+  const [visi, setVisi] = useState<string>(DEFAULT_STORY.visi);
+  const [misi, setMisi] = useState<string>(DEFAULT_STORY.misi);
   const [salesAboutMessage, setSalesAboutMessage] = useState<string>("Sebagai konsultan penjualan Anda, misi saya adalah memberikan kemudahan dalam setiap langkah kepemilikan motor Honda Anda...");
 
   const [isAdminOpen, setIsAdminOpen] = useState(false);
@@ -72,6 +74,8 @@ const App: React.FC = () => {
     if (data.storyCity) setStoryCity(data.storyCity);
     if (data.storyText1) setStoryText1(data.storyText1);
     if (data.storyText2) setStoryText2(data.storyText2);
+    if (data.visi) setVisi(data.visi);
+    if (data.misi) setMisi(data.misi);
     if (data.salesAboutMessage) setSalesAboutMessage(data.salesAboutMessage);
 
     if (saveLocally) {
@@ -87,6 +91,8 @@ const App: React.FC = () => {
       if (data.storyCity) localStorage.setItem('honda_story_city', data.storyCity);
       if (data.storyText1) localStorage.setItem('honda_story_text1', data.storyText1);
       if (data.storyText2) localStorage.setItem('honda_story_text2', data.storyText2);
+      if (data.visi) localStorage.setItem('honda_visi', data.visi);
+      if (data.misi) localStorage.setItem('honda_misi', data.misi);
       if (data.salesAboutMessage) localStorage.setItem('honda_sales_about_msg', data.salesAboutMessage);
       
       localStorage.setItem('honda_setup_completed', 'true');
@@ -104,7 +110,6 @@ const App: React.FC = () => {
         const decodedFb = safeAtob(fbParam);
         if (decodedFb) {
           localStorage.setItem('honda_firebase_config', decodedFb);
-          // Bersihkan URL agar rapi kembali
           window.history.replaceState({}, '', window.location.pathname + '?staff=true');
         }
       }
@@ -142,6 +147,8 @@ const App: React.FC = () => {
       setStoryCity(localStorage.getItem('honda_story_city') || DEFAULT_STORY.city);
       setStoryText1(localStorage.getItem('honda_story_text1') || DEFAULT_STORY.text1);
       setStoryText2(localStorage.getItem('honda_story_text2') || DEFAULT_STORY.text2);
+      setVisi(localStorage.getItem('honda_visi') || DEFAULT_STORY.visi);
+      setMisi(localStorage.getItem('honda_misi') || DEFAULT_STORY.misi);
       setSalesAboutMessage(localStorage.getItem('honda_sales_about_msg') || "Sebagai konsultan penjualan Anda, misi saya adalah memberikan kemudahan dalam setiap langkah kepemilikan motor Honda Anda...");
 
       const fbConfigStr = localStorage.getItem('honda_firebase_config');
@@ -187,6 +194,8 @@ const App: React.FC = () => {
       if (storyData.storyCity) setStoryCity(storyData.storyCity);
       if (storyData.storyText1) setStoryText1(storyData.storyText1);
       if (storyData.storyText2) setStoryText2(storyData.storyText2);
+      if (storyData.visi) setVisi(storyData.visi);
+      if (storyData.misi) setMisi(storyData.misi);
       if (storyData.salesAboutMessage) setSalesAboutMessage(storyData.salesAboutMessage);
     }
 
@@ -208,7 +217,16 @@ const App: React.FC = () => {
         {selectedProduct ? (
           <ProductDetail product={selectedProduct} salesInfo={salesInfo} onBack={() => setSelectedProduct(null)} />
         ) : currentView === 'about' ? (
-          <About salesInfo={salesInfo} storyTitle={storyTitle} storyCity={storyCity} storyText1={storyText1} storyText2={storyText2} salesAboutMessage={salesAboutMessage} />
+          <About 
+            salesInfo={salesInfo} 
+            storyTitle={storyTitle} 
+            storyCity={storyCity} 
+            storyText1={storyText1} 
+            storyText2={storyText2} 
+            visi={visi}
+            misi={misi}
+            salesAboutMessage={salesAboutMessage} 
+          />
         ) : currentView === 'contact' ? (
           <Contact salesInfo={salesInfo} />
         ) : (
@@ -219,7 +237,6 @@ const App: React.FC = () => {
       <Footer dealerName={dealerName} salesInfo={salesInfo} logo={logo} />
       <FloatingContact salesInfo={salesInfo} />
       
-      {/* Cloud Status Indicator for Admin */}
       {isStaff && (
         <div className={`fixed bottom-6 left-6 z-[100] px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-widest border shadow-xl flex items-center gap-2 ${
           cloudStatus === 'connected' ? 'bg-green-500 text-white border-green-400' :
@@ -231,7 +248,28 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <AdminSettingsModal isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} salesInfo={salesInfo} products={products} promos={promos} logo={logo} heroBackground={heroBackground} dealerName={dealerName} dealerAddress={dealerAddress} storyTitle={storyTitle} storyCity={storyCity} storyText1={storyText1} storyText2={storyText2} salesAboutMessage={salesAboutMessage} onSave={handleSaveAdminSettings} onReset={() => { localStorage.clear(); window.location.reload(); }} onSyncRemote={async () => {}} remoteUrl={null} />
+      <AdminSettingsModal 
+        isOpen={isAdminOpen} 
+        onClose={() => setIsAdminOpen(false)} 
+        salesInfo={salesInfo} 
+        products={products} 
+        promos={promos} 
+        logo={logo} 
+        heroBackground={heroBackground} 
+        dealerName={dealerName} 
+        dealerAddress={dealerAddress} 
+        storyTitle={storyTitle} 
+        storyCity={storyCity} 
+        storyText1={storyText1} 
+        storyText2={storyText2} 
+        visi={visi}
+        misi={misi}
+        salesAboutMessage={salesAboutMessage} 
+        onSave={handleSaveAdminSettings} 
+        onReset={() => { localStorage.clear(); window.location.reload(); }} 
+        onSyncRemote={async () => {}} 
+        remoteUrl={null} 
+      />
       <SalesProfileModal isOpen={isSalesOpen} onClose={() => setIsSalesOpen(false)} salesInfo={salesInfo} remoteUrl={null} onSave={(s) => handleSaveAdminSettings(s, logo, dealerName, dealerAddress, heroBackground)} />
       <AdminPromoModal isOpen={isPromoOpen} onClose={() => setIsPromoOpen(false)} promos={promos} onSave={(p) => handleSaveAdminSettings(salesInfo, logo, dealerName, dealerAddress, heroBackground, {promos: p})} />
       <AdminProductModal isOpen={isCatalogOpen} onClose={() => setIsCatalogOpen(false)} products={products} onSave={(p) => handleSaveAdminSettings(salesInfo, logo, dealerName, dealerAddress, heroBackground, {products: p})} />

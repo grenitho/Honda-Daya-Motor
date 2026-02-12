@@ -16,6 +16,8 @@ interface AdminSettingsModalProps {
   storyCity: string;
   storyText1: string;
   storyText2: string;
+  visi: string;
+  misi: string;
   salesAboutMessage: string;
   remoteUrl: string | null;
   onSyncRemote: (url: string) => Promise<any>;
@@ -32,7 +34,7 @@ const safeBtoa = (str: string) => {
 };
 
 const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ 
-  isOpen, onClose, salesInfo, products, promos, logo, heroBackground, dealerName, dealerAddress, storyTitle, storyCity, storyText1, storyText2, salesAboutMessage, onSave, onReset 
+  isOpen, onClose, salesInfo, products, promos, logo, heroBackground, dealerName, dealerAddress, storyTitle, storyCity, storyText1, storyText2, visi, misi, salesAboutMessage, onSave, onReset 
 }) => {
   const [activeTab, setActiveTab] = useState<'admin' | 'firebase'>('admin');
   const [tempSales, setTempSales] = useState<SalesPerson>(salesInfo);
@@ -45,6 +47,8 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
   const [tempStoryCity, setTempStoryCity] = useState(storyCity);
   const [tempStoryText1, setTempStoryText1] = useState(storyText1);
   const [tempStoryText2, setTempStoryText2] = useState(storyText2);
+  const [tempVisi, setTempVisi] = useState(visi);
+  const [tempMisi, setTempMisi] = useState(misi);
   const [tempSalesAboutMsg, setTempSalesAboutMsg] = useState(salesAboutMessage);
 
   const [fbConfig, setFbConfig] = useState<string>(localStorage.getItem('honda_firebase_config') || '');
@@ -61,9 +65,11 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
       setTempStoryCity(storyCity);
       setTempStoryText1(storyText1);
       setTempStoryText2(storyText2);
+      setTempVisi(visi);
+      setTempMisi(misi);
       setTempSalesAboutMsg(salesAboutMessage);
     }
-  }, [isOpen, salesInfo, logo, heroBackground, dealerName, dealerAddress, storyTitle, storyCity, storyText1, storyText2, salesAboutMessage]);
+  }, [isOpen, salesInfo, logo, heroBackground, dealerName, dealerAddress, storyTitle, storyCity, storyText1, storyText2, visi, misi, salesAboutMessage]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'heroBg') => {
     const file = e.target.files?.[0];
@@ -84,6 +90,8 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
       storyCity: tempStoryCity,
       storyText1: tempStoryText1,
       storyText2: tempStoryText2,
+      visi: tempVisi,
+      misi: tempMisi,
       salesAboutMessage: tempSalesAboutMsg
     });
     onClose();
@@ -115,12 +123,10 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
           {activeTab === 'admin' && (
             <div className="space-y-10">
               
-              {/* BAGIAN 1: IDENTITAS DEALER */}
               <div className="space-y-6">
                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 border-b pb-2">1. Identitas Dealer</h4>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                   {/* Logo Upload */}
                    <div className="space-y-2">
                       <label className="text-[8px] font-black uppercase text-gray-400">Logo Dealer (PNG/JPG)</label>
                       <div className="relative aspect-video rounded-2xl border-2 border-dashed border-gray-100 bg-gray-50 flex flex-col items-center justify-center overflow-hidden group hover:border-honda-red transition-all">
@@ -139,7 +145,6 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                         )}
                         <input type="file" onChange={(e) => handleFileChange(e, 'logo')} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
                       </div>
-                      <input type="text" value={tempLogo || ''} onChange={e => setTempLogo(e.target.value)} placeholder="Atau tempel URL di sini..." className="w-full p-2 border rounded-lg text-[8px] bg-white outline-none focus:border-honda-red" />
                    </div>
 
                    <div className="space-y-4">
@@ -155,7 +160,6 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* BAGIAN 2: HEADLINE DEPAN (HERO) */}
               <div className="bg-blue-50/40 p-6 rounded-[2rem] border border-blue-100 space-y-6">
                 <h4 className="text-[10px] font-black uppercase italic text-blue-900 flex items-center gap-2">
                    <span className="w-6 h-6 bg-blue-600 text-white rounded-lg flex items-center justify-center not-italic text-[10px]">2</span>
@@ -163,60 +167,25 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                 </h4>
 
                 <div className="space-y-2">
-                   <label className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Background Banner Utama (Full Image)</label>
+                   <label className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Background Banner Utama</label>
                    <div className="relative aspect-video rounded-3xl border-2 border-dashed border-blue-200 bg-white flex flex-col items-center justify-center overflow-hidden group hover:border-blue-500 transition-all">
                       {tempHeroBg ? (
-                        <>
-                          <img src={tempHeroBg} alt="Hero Preview" className="h-full w-full object-cover" />
-                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                             <span className="text-white text-[9px] font-bold uppercase">Ganti Gambar Banner</span>
-                          </div>
-                        </>
+                        <img src={tempHeroBg} alt="Hero Preview" className="h-full w-full object-cover" />
                       ) : (
-                        <div className="text-center">
-                           <p className="text-[8px] text-blue-300 font-bold uppercase">Upload Banner</p>
-                        </div>
+                        <p className="text-[8px] text-blue-300 font-bold uppercase">Upload Banner</p>
                       )}
                       <input type="file" onChange={(e) => handleFileChange(e, 'heroBg')} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
                    </div>
-                   <input type="text" value={tempHeroBg} onChange={e => setTempHeroBg(e.target.value)} placeholder="Atau tempel URL background..." className="w-full p-2 border rounded-lg text-[8px] bg-white outline-none focus:border-blue-500" />
                 </div>
                 
                 <div className="space-y-4 pt-2">
                   <div className="space-y-1">
-                     <label className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Label Kecil (Badge Atas)</label>
-                     <input 
-                      type="text" 
-                      value={tempSales.heroBadge} 
-                      onChange={e => setTempSales({...tempSales, heroBadge: e.target.value})} 
-                      className="w-full p-3 border border-blue-100 rounded-xl text-xs bg-white font-bold" 
-                      placeholder="Contoh: SALES DIGITAL HONDA" 
-                     />
-                  </div>
-
-                  <div className="space-y-1">
-                     <label className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Headline Utama (Besar)</label>
-                     <input 
-                      type="text" 
-                      value={tempSales.heroHeadline} 
-                      onChange={e => setTempSales({...tempSales, heroHeadline: e.target.value})} 
-                      className="w-full p-3 border border-blue-100 rounded-xl text-xs bg-white font-black italic" 
-                     />
-                     <p className="text-[7px] text-blue-500 italic">Gunakan tanda "|" untuk baris baru (teks setelahnya jadi merah).</p>
-                  </div>
-
-                  <div className="space-y-1">
-                     <label className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Teks Intro / Sambutan</label>
-                     <textarea 
-                      value={tempSales.heroIntro} 
-                      onChange={e => setTempSales({...tempSales, heroIntro: e.target.value})} 
-                      className="w-full p-3 border border-blue-100 rounded-xl text-xs bg-white h-20 resize-none leading-relaxed" 
-                     />
+                     <label className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Headline Utama</label>
+                     <input type="text" value={tempSales.heroHeadline} onChange={e => setTempSales({...tempSales, heroHeadline: e.target.value})} className="w-full p-3 border border-blue-100 rounded-xl text-xs bg-white font-black italic" />
                   </div>
                 </div>
               </div>
 
-              {/* BAGIAN 3: HALAMAN TENTANG (STORY) */}
               <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-200 space-y-5">
                 <h4 className="text-[10px] font-black uppercase italic text-gray-900 flex items-center gap-2">
                    <span className="w-6 h-6 bg-honda-red text-white rounded-lg flex items-center justify-center not-italic text-[10px]">3</span>
@@ -229,19 +198,25 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                      <input type="text" value={tempStoryTitle} onChange={e => setTempStoryTitle(e.target.value)} className="w-full p-3 border rounded-xl text-xs bg-white font-bold" />
                    </div>
                    <div className="space-y-1">
-                     <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Nama Kota (Teks Merah)</label>
+                     <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Kota (Teks Merah)</label>
                      <input type="text" value={tempStoryCity} onChange={e => setTempStoryCity(e.target.value)} className="w-full p-3 border rounded-xl text-xs bg-white text-honda-red font-black" />
                    </div>
                 </div>
 
-                <div className="space-y-1">
-                   <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Isi Cerita (Paragraf 1)</label>
-                   <textarea value={tempStoryText1} onChange={e => setTempStoryText1(e.target.value)} className="w-full p-3 border rounded-xl text-xs bg-white h-24 resize-none leading-relaxed" />
+                <div className="space-y-4">
+                   <div className="space-y-1">
+                     <label className="text-[8px] font-black text-honda-red uppercase tracking-widest">Visi Perusahaan</label>
+                     <textarea value={tempVisi} onChange={e => setTempVisi(e.target.value)} className="w-full p-3 border border-red-100 rounded-xl text-xs bg-white h-20 leading-relaxed italic" placeholder="Tulis visi dealer..." />
+                   </div>
+                   <div className="space-y-1">
+                     <label className="text-[8px] font-black text-gray-900 uppercase tracking-widest">Misi Perusahaan</label>
+                     <textarea value={tempMisi} onChange={e => setTempMisi(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl text-xs bg-white h-20 leading-relaxed italic" placeholder="Tulis misi dealer..." />
+                   </div>
                 </div>
 
-                <div className="space-y-1 pt-2">
-                   <label className="text-[8px] font-black text-gray-900 uppercase tracking-widest">Kutipan Pribadi Sales</label>
-                   <textarea value={tempSalesAboutMsg} onChange={e => setTempSalesAboutMsg(e.target.value)} className="w-full p-3 border-2 border-honda-red/10 rounded-xl text-xs bg-white h-24 italic" />
+                <div className="space-y-1 border-t pt-4 mt-2">
+                   <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Isi Cerita Dealer</label>
+                   <textarea value={tempStoryText1} onChange={e => setTempStoryText1(e.target.value)} className="w-full p-3 border rounded-xl text-xs bg-white h-24 resize-none leading-relaxed" />
                 </div>
               </div>
 
@@ -253,23 +228,12 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
             <div className="space-y-6">
                <div className="bg-orange-50 p-6 rounded-3xl border border-orange-100">
                   <h4 className="text-[10px] font-black uppercase italic text-orange-600 mb-2">Cloud Master Sync</h4>
-                  <p className="text-[9px] text-orange-800 leading-relaxed mb-4">
-                    Gunakan link ini untuk sinkronisasi otomatis ke HP atau Laptop baru tanpa perlu input kode manual.
-                  </p>
-                  <button 
-                    disabled={!fbConfig}
-                    onClick={handleCopySetupLink}
-                    className={`w-full py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-md ${copiedLink ? 'bg-green-500 text-white' : 'bg-white text-orange-600 border border-orange-200 hover:bg-orange-100'}`}
-                  >
+                  <button onClick={handleCopySetupLink} className={`w-full py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-md ${copiedLink ? 'bg-green-500 text-white' : 'bg-white text-orange-600 border border-orange-200 hover:bg-orange-100'}`}>
                     {copiedLink ? '✓ Link Berhasil Disalin' : '🔗 Salin Link Setup Otomatis'}
                   </button>
                </div>
 
-               <div className="space-y-2">
-                 <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Konfigurasi Firebase (JSON)</label>
-                 <textarea value={fbConfig} onChange={e => setFbConfig(e.target.value)} className="w-full p-4 border rounded-2xl text-[10px] font-mono h-48 bg-gray-50" placeholder='Tempel kode JSON Firebase di sini...' />
-               </div>
-               
+               <textarea value={fbConfig} onChange={e => setFbConfig(e.target.value)} className="w-full p-4 border rounded-2xl text-[10px] font-mono h-48 bg-gray-50" placeholder='Tempel kode JSON Firebase di sini...' />
                <button onClick={() => { localStorage.setItem('honda_firebase_config', fbConfig); window.location.reload(); }} className="w-full bg-orange-500 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-orange-100 hover:bg-orange-600 transition-all">Aktifkan Cloud Sekarang</button>
             </div>
           )}
@@ -277,7 +241,7 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
 
         <div className="p-8 bg-gray-50 flex gap-4 border-t shrink-0">
           <button onClick={onClose} className="flex-1 py-4 text-xs font-bold uppercase text-gray-400">Batal</button>
-          <button onClick={handleSave} className="flex-[2] bg-gray-900 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all shadow-xl active:scale-95">Simpan Semua Perubahan</button>
+          <button onClick={handleSave} className="flex-[2] bg-gray-900 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all shadow-xl active:scale-95">Simpan Perubahan</button>
         </div>
       </div>
     </div>

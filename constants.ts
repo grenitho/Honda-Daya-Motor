@@ -8,7 +8,9 @@ export const DEFAULT_STORY = {
   title: 'Dealer Terpercaya di',
   city: 'SUNGAILIAT',
   text1: 'Dealer Honda kami berdiri dengan komitmen untuk menjadi mitra berkendara terbaik bagi masyarakat Bangka Belitung. Kami tidak hanya sekadar menjual sepeda motor, tetapi kami memberikan solusi transportasi yang aman, nyaman, dan prestisius.',
-  text2: 'Dengan layanan purna jual yang profesional dan ketersediaan suku cadang asli, kami memastikan setiap pelanggan merasakan "One Heart" bersama Honda di setiap perjalanan mereka.'
+  text2: 'Dengan layanan purna jual yang profesional dan ketersediaan suku cadang asli, kami memastikan setiap pelanggan merasakan "One Heart" bersama Honda di setiap perjalanan mereka.',
+  visi: 'Menjadi Dealer Honda nomor satu dalam pelayanan dan kepercayaan pelanggan dengan mengutamakan kualitas serta kepuasan konsumen secara berkelanjutan.',
+  misi: 'Memberikan solusi transportasi terbaik, menjamin ketersediaan suku cadang asli, dan menyediakan layanan servis profesional untuk mendukung mobilitas masyarakat.'
 };
 
 export const SALES_INFO: SalesPerson = {

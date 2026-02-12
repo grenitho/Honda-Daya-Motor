@@ -8,10 +8,21 @@ interface AboutProps {
   storyCity: string;
   storyText1: string;
   storyText2: string;
+  visi: string;
+  misi: string;
   salesAboutMessage: string;
 }
 
-const About: React.FC<AboutProps> = ({ salesInfo, storyTitle, storyCity, storyText1, storyText2, salesAboutMessage }) => {
+const About: React.FC<AboutProps> = ({ 
+  salesInfo, 
+  storyTitle, 
+  storyCity, 
+  storyText1, 
+  storyText2, 
+  visi, 
+  misi, 
+  salesAboutMessage 
+}) => {
   return (
     <div className="min-h-screen bg-white">
       {/* Page Header */}
@@ -29,7 +40,47 @@ const About: React.FC<AboutProps> = ({ salesInfo, storyTitle, storyCity, storyTe
         </div>
       </div>
 
-      {/* Vision & Mission */}
+      {/* VISION & MISSION SECTION */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Visi */}
+            <div className="bg-honda-red p-10 md:p-14 rounded-[2.5rem] text-white shadow-2xl shadow-red-100 relative overflow-hidden group">
+              <div className="absolute top-[-20px] right-[-20px] text-white/10 text-9xl font-black italic select-none group-hover:scale-110 transition-transform duration-700">V</div>
+              <div className="relative z-10">
+                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center mb-6 backdrop-blur-md">
+                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                   </svg>
+                </div>
+                <h2 className="text-3xl font-black italic tracking-tighter uppercase mb-4">Visi <span className="text-red-200"></span></h2>
+                <p className="text-lg font-medium leading-relaxed opacity-90 italic">
+                  "{visi}"
+                </p>
+              </div>
+            </div>
+
+            {/* Misi */}
+            <div className="bg-gray-950 p-10 md:p-14 rounded-[2.5rem] text-white shadow-2xl shadow-gray-200 relative overflow-hidden group">
+              <div className="absolute top-[-20px] right-[-20px] text-white/5 text-9xl font-black italic select-none group-hover:scale-110 transition-transform duration-700">M</div>
+              <div className="relative z-10">
+                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mb-6 backdrop-blur-md">
+                   <svg className="w-6 h-6 text-honda-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                   </svg>
+                </div>
+                <h2 className="text-3xl font-black italic tracking-tighter uppercase mb-4">Misi <span className="text-honda-red"></span></h2>
+                <p className="text-lg font-medium leading-relaxed opacity-80 italic">
+                  "{misi}"
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Our Story Section */}
       <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
           <div>
@@ -70,7 +121,7 @@ const About: React.FC<AboutProps> = ({ salesInfo, storyTitle, storyCity, storyTe
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-white rounded-[2rem] overflow-hidden shadow-xl flex flex-col md:flex-row items-stretch">
             <div className="md:w-1/3">
-              <img src={salesInfo.photo} className="w-full h-full object-cover grayscale" alt={salesInfo.name} />
+              <img src={salesInfo.photo} className="w-full h-full object-cover" alt={salesInfo.name} />
             </div>
             <div className="md:w-2/3 p-12 flex flex-col justify-center">
               <h3 className="text-2xl font-black italic uppercase tracking-tighter mb-4">Pesan Dari <span className="text-honda-red">Konsultan Anda</span></h3>
