@@ -180,8 +180,12 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                 
                 <div className="space-y-4 pt-2">
                   <div className="space-y-1">
-                     <label className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Headline Utama</label>
-                     <input type="text" value={tempSales.heroHeadline} onChange={e => setTempSales({...tempSales, heroHeadline: e.target.value})} className="w-full p-3 border border-blue-100 rounded-xl text-xs bg-white font-black italic" />
+                     <label className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Teks Kecil (Badge)</label>
+                     <input type="text" value={tempSales.heroBadge} onChange={e => setTempSales({...tempSales, heroBadge: e.target.value})} className="w-full p-3 border border-blue-100 rounded-xl text-xs bg-white font-bold" placeholder="Contoh: Sales Digital Honda" />
+                  </div>
+                  <div className="space-y-1">
+                     <label className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Headline Utama (Gunakan '|' untuk baris baru)</label>
+                     <input type="text" value={tempSales.heroHeadline} onChange={e => setTempSales({...tempSales, heroHeadline: e.target.value})} className="w-full p-3 border border-blue-100 rounded-xl text-xs bg-white font-black italic" placeholder="Contoh: SALAM SATU | HATI" />
                   </div>
                 </div>
               </div>
