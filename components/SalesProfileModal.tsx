@@ -31,7 +31,7 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
     if (!isOpen) return;
     const baseUrl = `${window.location.origin}${window.location.pathname}`;
     
-    // Kita hanya menyertakan data profile tanpa foto ke URL agar link tidak terlalu panjang
+    // Kita menyertakan data profile dasar ke URL
     const { photo, ...lightSalesInfo } = tempSales;
     const personalData = { salesInfo: lightSalesInfo }; 
     const encoded = safeBtoa(JSON.stringify(personalData));
@@ -39,6 +39,13 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
     const remoteParam = remoteUrl ? `&remote=${encodeURIComponent(remoteUrl)}` : '';
     setPersonalUrl(`${baseUrl}?p=${encoded}${remoteParam}`);
   }, [tempSales, isOpen, remoteUrl]);
+
+  // Sync state when salesInfo prop changes
+  useEffect(() => {
+    if (isOpen) {
+      setTempSales(salesInfo);
+    }
+  }, [isOpen, salesInfo]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -65,45 +72,44 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
 
   if (!isOpen) return null;
 
-  // QR Code URL menggunakan API gratis
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(personalUrl)}&color=E4002B`;
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
       <div className="bg-white rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-        {/* Header with Red Honda Theme */}
         <div className="bg-honda-red px-8 py-6 text-white shrink-0">
           <div className="flex justify-between items-center mb-4">
             <div>
               <h2 className="text-xl font-black italic uppercase tracking-tighter">Sales Center</h2>
-              <p className="text-[10px] text-red-100 font-bold uppercase tracking-[0.2em]">Dashboard Digital Marketing</p>
+              <p className="text-[10px] text-red-100 font-bold uppercase tracking-[0.2em]">Pusat Kendali Profil & Marketing</p>
             </div>
             <button onClick={onClose} className="hover:rotate-90 transition-transform text-2xl p-2">✕</button>
           </div>
           
-          {/* Tab Navigation */}
           <div className="flex gap-4 mt-2">
             <button 
               onClick={() => setActiveTab('edit')}
               className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'edit' ? 'border-white text-white' : 'border-transparent text-red-200'}`}
             >
-              Edit Profil
+              Edit Profil & Sosial
             </button>
             <button 
               onClick={() => setActiveTab('share')}
               className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'share' ? 'border-white text-white' : 'border-transparent text-red-200'}`}
             >
-              Bagikan & Shortlink
+              Kartu Nama Digital (QR)
             </button>
           </div>
         </div>
         
-        <div className="p-8 overflow-y-auto no-scrollbar flex-grow">
+        <div className="p-8 overflow-y-auto no-scrollbar flex-grow bg-white">
           {activeTab === 'edit' ? (
             <div className="animate-in fade-in slide-in-from-left-4 duration-300 space-y-8">
+              
+              {/* BAGIAN 1: IDENTITAS VISUAL */}
               <div className="grid grid-cols-12 gap-8">
                 <div className="col-span-full md:col-span-4">
-                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Foto Profesional</label>
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Foto Profil</label>
                   <div className="relative aspect-[3/4] bg-gray-100 rounded-3xl overflow-hidden border-2 border-dashed border-gray-200 group">
                     {tempSales.photo ? (
                       <img src={tempSales.photo} className="w-full h-full object-cover group-hover:scale-105 transition-all" />
@@ -121,7 +127,7 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Nama Lengkap</label>
-                      <input type="text" value={tempSales.name} onChange={e => setTempSales({...tempSales, name: e.target.value})} className="w-full p-3 border rounded-xl text-xs font-bold bg-gray-50 outline-none" />
+                      <input type="text" value={tempSales.name} onChange={e => setTempSales({...tempSales, name: e.target.value})} className="w-full p-3 border rounded-xl text-xs font-bold bg-gray-50 outline-none focus:border-honda-red" />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Jabatan</label>
@@ -131,29 +137,72 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">No. WhatsApp</label>
-                      <input type="text" value={tempSales.whatsapp} onChange={e => setTempSales({...tempSales, whatsapp: e.target.value})} className="w-full p-3 border rounded-xl text-xs bg-gray-50" />
+                      <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Nomor WhatsApp</label>
+                      <input type="text" value={tempSales.whatsapp} onChange={e => setTempSales({...tempSales, whatsapp: e.target.value})} placeholder="628..." className="w-full p-3 border rounded-xl text-xs bg-gray-50" />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">No. HP Display</label>
-                      <input type="text" value={tempSales.phone} onChange={e => setTempSales({...tempSales, phone: e.target.value})} className="w-full p-3 border rounded-xl text-xs bg-gray-50" />
+                      <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Email Kerja</label>
+                      <input type="email" value={tempSales.email} onChange={e => setTempSales({...tempSales, email: e.target.value})} placeholder="email@gmail.com" className="w-full p-3 border rounded-xl text-xs bg-gray-50" />
                     </div>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Bio Singkat</label>
+                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Quotes / Bio Singkat</label>
                     <textarea value={tempSales.bio} onChange={e => setTempSales({...tempSales, bio: e.target.value})} className="w-full p-3 border rounded-xl text-xs h-20 bg-gray-50 resize-none leading-relaxed" />
                   </div>
                 </div>
               </div>
 
+              {/* BAGIAN 2: MEDIA SOSIAL (LINK) */}
+              <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100 space-y-4">
+                <h4 className="text-[10px] font-black uppercase italic text-gray-900 border-b pb-2 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-honda-red" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" /><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" /></svg>
+                  Link Media Sosial (Otomatis ke Footer)
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                   <div className="space-y-1">
+                      <label className="text-[8px] font-black text-blue-600 uppercase tracking-widest">Link Facebook</label>
+                      <input 
+                        type="text" 
+                        value={tempSales.facebook || ''} 
+                        onChange={e => setTempSales({...tempSales, facebook: e.target.value})} 
+                        placeholder="https://facebook.com/namaanda"
+                        className="w-full p-3 border rounded-xl text-[10px] bg-white outline-none focus:border-blue-600" 
+                      />
+                   </div>
+                   <div className="space-y-1">
+                      <label className="text-[8px] font-black text-pink-600 uppercase tracking-widest">Link Instagram</label>
+                      <input 
+                        type="text" 
+                        value={tempSales.instagram || ''} 
+                        onChange={e => setTempSales({...tempSales, instagram: e.target.value})} 
+                        placeholder="https://instagram.com/username"
+                        className="w-full p-3 border rounded-xl text-[10px] bg-white outline-none focus:border-pink-600" 
+                      />
+                   </div>
+                   <div className="space-y-1">
+                      <label className="text-[8px] font-black text-gray-900 uppercase tracking-widest">Link TikTok</label>
+                      <input 
+                        type="text" 
+                        value={tempSales.tiktok || ''} 
+                        onChange={e => setTempSales({...tempSales, tiktok: e.target.value})} 
+                        placeholder="https://tiktok.com/@username"
+                        className="w-full p-3 border rounded-xl text-[10px] bg-white outline-none focus:border-black" 
+                      />
+                   </div>
+                </div>
+                <p className="text-[7px] text-gray-400 italic">Kosongkan link jika Anda tidak ingin ikon sosial media tertentu tampil di website.</p>
+              </div>
+
+              {/* FOOTER ACTION */}
               <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex gap-4">
-                <button onClick={onClose} className="flex-1 py-3 text-xs font-bold uppercase text-gray-400 hover:text-gray-600 transition-colors">Batalkan</button>
+                <button onClick={onClose} className="flex-1 py-3 text-xs font-bold uppercase text-gray-400 hover:text-gray-600 transition-colors">Batal</button>
                 <button 
                   onClick={() => { onSave(tempSales); onClose(); }} 
-                  className="flex-[2] bg-gray-900 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all shadow-lg active:scale-95"
+                  className="flex-[2] bg-gray-900 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all shadow-xl active:scale-95"
                 >
-                  Update Profil Saya
+                  Simpan Semua Perubahan
                 </button>
               </div>
             </div>
@@ -168,9 +217,9 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
                   </div>
                 </div>
                 <div className="space-y-4 text-center md:text-left">
-                  <h3 className="text-sm font-black text-gray-900 uppercase italic">QR Code Personal Anda</h3>
+                  <h3 className="text-sm font-black text-gray-900 uppercase italic">Kartu Nama Digital</h3>
                   <p className="text-[10px] text-gray-500 leading-relaxed max-w-xs">
-                    Tampilkan kode ini di HP Anda saat bertemu customer, atau simpan untuk dicetak pada kartu nama dan brosur.
+                    Tampilkan QR ini kepada konsumen Anda untuk membagikan katalog digital dan kontak Anda secara instan.
                   </p>
                   <a 
                     href={qrCodeUrl} 
@@ -183,14 +232,14 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
                 </div>
               </div>
 
-              {/* Link Shortener & Word Link Dashboard */}
+              {/* Shortlinks */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 space-y-4">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center text-white text-[10px] font-black">S</div>
                     <h4 className="text-[11px] font-black text-blue-900 uppercase italic">S.id Integration</h4>
                   </div>
-                  <p className="text-[9px] text-blue-700 font-medium">Buat link pendek yang mudah diingat (Word Link) seperti <strong>s.id/honda-vins</strong></p>
+                  <p className="text-[9px] text-blue-700 font-medium">Buat link pendek seperti <strong>s.id/honda-vins</strong></p>
                   <button 
                     onClick={() => openShortener('sid')}
                     className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-blue-700 transition-all active:scale-95"
@@ -204,7 +253,7 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
                     <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center text-gray-900 text-[10px] font-black">B</div>
                     <h4 className="text-[11px] font-black text-white uppercase italic">Bit.ly Integration</h4>
                   </div>
-                  <p className="text-[9px] text-gray-400 font-medium">Gunakan Bitly untuk tracking klik yang lebih mendalam dari customer Anda.</p>
+                  <p className="text-[9px] text-gray-400 font-medium">Lacak berapa banyak konsumen yang mengklik link Anda.</p>
                   <button 
                     onClick={() => openShortener('bitly')}
                     className="w-full bg-white text-gray-900 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-gray-100 transition-all active:scale-95"
@@ -214,9 +263,9 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
                 </div>
               </div>
 
-              {/* The Long URL - Ready to Copy */}
+              {/* The URL */}
               <div className="p-6 bg-red-50 rounded-3xl border border-red-100 space-y-3">
-                <label className="text-[8px] font-black text-honda-red uppercase tracking-widest">Link Jualan Utama (Link Asli)</label>
+                <label className="text-[8px] font-black text-honda-red uppercase tracking-widest">Link Website Personal Anda</label>
                 <div className="flex gap-2">
                   <div className="flex-grow p-4 bg-white border border-red-100 rounded-xl overflow-hidden">
                     <p className="text-[8px] text-gray-400 truncate font-mono">{personalUrl}</p>
@@ -230,7 +279,6 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
                 </div>
               </div>
 
-              {/* Bottom Navigation for Share Tab */}
               <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex gap-4">
                 <button 
                   onClick={() => setActiveTab('edit')} 
@@ -242,7 +290,7 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
                   onClick={onClose} 
                   className="flex-1 bg-gray-900 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all active:scale-95 shadow-lg"
                 >
-                  Tutup Sales Center
+                  Selesai
                 </button>
               </div>
             </div>
@@ -250,7 +298,7 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
         </div>
 
         <div className="p-6 bg-gray-50 border-t shrink-0 flex justify-center">
-           <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Honda Daya Motor Sungailiat - Digital Staff Access</p>
+           <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Pusat Pemasaran Digital - Honda Authorized Dealer</p>
         </div>
       </div>
     </div>
