@@ -50,7 +50,16 @@ const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
 
-  // Gunakan useCallback untuk menghindari masalah closure dan re-render
+  // Helper untuk membersihkan URL agar parameter ?p= tidak menyebabkan reset saat refresh
+  const clearUrlParams = () => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('p') || url.searchParams.has('remote')) {
+      url.searchParams.delete('p');
+      // Kita tetap pertahankan ?staff=true agar user tidak keluar dari mode admin
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
+
   const applyData = useCallback((data: any) => {
     if (!data) return;
 
@@ -112,11 +121,10 @@ const App: React.FC = () => {
         const urlParams = new URLSearchParams(window.location.search);
         const urlRemote = urlParams.get('remote');
         const encodedData = urlParams.get('p');
-        const activeRemote = urlRemote || remoteUrl;
         
         setIsStaff(urlParams.get('staff') === 'true');
 
-        // 1. LOAD LOCAL STORAGE TERLEBIH DAHULU (Default)
+        // 1. LOAD LOCAL STORAGE TERLEBIH DAHULU
         const safeParse = (key: string, fallback: any) => {
           try {
             const item = localStorage.getItem(key);
@@ -127,27 +135,32 @@ const App: React.FC = () => {
           }
         };
 
-        setProducts(safeParse('honda_catalog', INITIAL_PRODUCTS));
-        setPromos(safeParse('honda_promos', DEFAULT_PROMOS));
-        setSalesInfo(safeParse('honda_sales_info', DEFAULT_SALES));
+        const localProducts = safeParse('honda_catalog', INITIAL_PRODUCTS);
+        const localPromos = safeParse('honda_promos', DEFAULT_PROMOS);
+        const localSales = safeParse('honda_sales_info', DEFAULT_SALES);
+
+        setProducts(localProducts);
+        setPromos(localPromos);
+        setSalesInfo(localSales);
         setLogo(localStorage.getItem('honda_dealer_logo') || DEFAULT_LOGO_URL);
         setHeroBackground(localStorage.getItem('honda_hero_bg') || DEFAULT_HERO_BG_URL);
         setDealerName(localStorage.getItem('honda_dealer_name') || 'HONDA DAYA MOTOR SUNGAILIAT');
         setDealerAddress(localStorage.getItem('honda_dealer_address') || 'Jl. Batin Tikal No.423, Karya Makmur, Kec. Pemali, Kabupaten Bangka, Kepulauan Bangka Belitung 33215');
 
-        // 2. SINKRONISASI CLOUD (Jika ada)
-        if (activeRemote) {
-          await handleSyncRemote(activeRemote);
+        // 2. SINKRONISASI CLOUD (Jika ada parameter remote baru di URL)
+        if (urlRemote) {
+          await handleSyncRemote(urlRemote);
+          clearUrlParams(); // Bersihkan agar tidak fetch terus menerus
         }
 
-        // 3. OVERRIDE DENGAN DATA LINK (Prioritas Utama)
-        // Jika di link ada data profile baru, ini akan menimpa data dari Gist Cloud.
+        // 3. OVERRIDE DENGAN DATA LINK (Hanya jika local storage kosong atau ini klik pertama)
         if (encodedData) {
           const decoded = safeAtob(encodedData);
           if (decoded) {
             try {
               const data = JSON.parse(decoded);
               applyData(data);
+              clearUrlParams(); // CRITICAL: Bersihkan URL setelah data diterapkan
             } catch (e) {
               console.error("Gagal parse data link:", e);
             }
@@ -161,7 +174,7 @@ const App: React.FC = () => {
     };
 
     initializeData();
-  }, [remoteUrl, applyData]); // Ditambahkan dependency agar fungsi sinkron
+  }, [applyData]);
 
   const handleSaveAdminSettings = (newSales: SalesPerson, newLogo: string | null, newName: string, newAddress: string, newHeroBg: string) => {
     setSalesInfo(newSales);
