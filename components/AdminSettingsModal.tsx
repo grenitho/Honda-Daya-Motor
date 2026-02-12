@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { SalesPerson, Promo, Product } from '../types';
 
-// Fungsi helper untuk btoa yang mendukung karakter spesial (UTF-8)
 const safeBtoa = (str: string) => {
   try {
     return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => {
@@ -25,7 +24,7 @@ interface AdminSettingsModalProps {
   dealerName: string;
   dealerAddress: string;
   remoteUrl: string | null;
-  onSyncRemote: (url: string) => Promise<void>;
+  onSyncRemote: (url: string) => Promise<any>;
   onSave: (newSalesInfo: SalesPerson, newLogo: string | null, newName: string, newAddress: string, newHeroBg: string) => void;
 }
 
@@ -40,16 +39,25 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
   const [tempAddress, setTempAddress] = useState<string>(dealerAddress);
   const [tempRemoteUrl, setTempRemoteUrl] = useState<string>(remoteUrl || '');
   const [copied, setCopied] = useState<string | false>(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  
+  const [isSyncingLocal, setIsSyncingLocal] = useState(false);
   const [masterUrl, setMasterUrl] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setTempSales(salesInfo);
+      setTempLogo(logo);
+      setTempHeroBg(heroBackground);
+      setTempName(dealerName);
+      setTempAddress(dealerAddress);
+      setTempRemoteUrl(remoteUrl || '');
+    }
+  }, [isOpen, salesInfo, logo, heroBackground, dealerName, dealerAddress, remoteUrl]);
 
   useEffect(() => {
     if (!isOpen) return;
     const baseUrl = `${window.location.origin}${window.location.pathname}`;
     const remoteParam = tempRemoteUrl ? `&remote=${encodeURIComponent(tempRemoteUrl)}` : '';
     
-    // Filter out heavy images from link
     const lightProducts = products.map(({ image, ...rest }) => rest);
     const lightPromos = promos.map(({ image, ...rest }) => rest);
 
@@ -71,7 +79,7 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
     });
   };
 
-  const handleDownloadConfig = () => {
+  const getFullConfigString = () => {
     const fullConfig = {
       dealerName: tempName,
       dealerAddress: tempAddress,
@@ -82,8 +90,15 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
       promos: promos,
       exportedAt: new Date().toISOString()
     };
+    return JSON.stringify(fullConfig, null, 2);
+  };
 
-    const blob = new Blob([JSON.stringify(fullConfig, null, 2)], { type: 'application/json' });
+  const handleCopyConfig = () => {
+    copy(getFullConfigString(), 'config-json');
+  };
+
+  const handleDownloadConfig = () => {
+    const blob = new Blob([getFullConfigString()], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -92,6 +107,42 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const handleSyncClick = async () => {
+    let targetUrl = tempRemoteUrl.trim();
+    if (!targetUrl) {
+      alert("Masukkan URL Remote terlebih dahulu.");
+      return;
+    }
+
+    // SMART URL: Otomatis konversi link Gist biasa ke link RAW
+    if (targetUrl.includes('gist.github.com') && !targetUrl.includes('/raw')) {
+      // Jika link formatnya https://gist.github.com/username/id
+      // Kita coba tambahkan /raw di belakangnya
+      if (!targetUrl.endsWith('/raw')) {
+        targetUrl = targetUrl.replace(/\/$/, '') + '/raw';
+      }
+    }
+    
+    setIsSyncingLocal(true);
+    try {
+      const data = await onSyncRemote(targetUrl);
+      if (data) {
+        if (data.dealerName) setTempName(data.dealerName);
+        if (data.dealerAddress) setTempAddress(data.dealerAddress);
+        if (data.salesInfo) setTempSales((prev) => ({ ...prev, ...data.salesInfo }));
+        if (data.logo) setTempLogo(data.logo);
+        if (data.heroBackground) setTempHeroBg(data.heroBackground);
+        setTempRemoteUrl(targetUrl); // Update input field dengan URL yang sudah di-fix
+        
+        alert("Sinkronisasi Cloud Berhasil!\nData telah diperbarui di formulir. Klik 'Simpan Perubahan' di bawah untuk menerapkan ke seluruh website.");
+      }
+    } catch (err) {
+      alert("Gagal sinkronisasi: Pastikan link Gist benar dan bersifat Public.");
+    } finally {
+      setIsSyncingLocal(false);
+    }
   };
 
   const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -195,42 +246,59 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
           {activeTab === 'cloud' && (
             <div className="space-y-8 animate-in fade-in duration-500">
               <div className="p-8 bg-blue-50 border border-blue-100 rounded-[2.5rem] space-y-6">
-                <div className="flex justify-between items-start">
-                  <h3 className="text-sm font-black uppercase italic text-blue-900">Cloud Sync</h3>
-                  <button 
-                    onClick={handleDownloadConfig}
-                    className="flex items-center gap-2 text-[9px] font-black text-gray-500 uppercase tracking-widest hover:text-honda-red transition-colors"
-                    title="Simpan data ke file JSON untuk diupload ke Gist"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Download Config JSON
-                  </button>
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-black uppercase italic text-blue-900">Cloud Data Management</h3>
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={handleCopyConfig}
+                      className="flex items-center gap-1.5 text-[9px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-800 transition-colors"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3" /></svg>
+                      {copied === 'config-json' ? 'Copied!' : 'Copy JSON'}
+                    </button>
+                    <button 
+                      onClick={handleDownloadConfig}
+                      className="flex items-center gap-1.5 text-[9px] font-black text-gray-500 uppercase tracking-widest hover:text-honda-red transition-colors"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                      Download
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="space-y-4">
-                  <p className="text-[10px] text-blue-800 font-medium leading-relaxed">
-                    1. Klik tombol <strong>Download Config JSON</strong> di atas.<br/>
-                    2. Upload file tersebut ke <strong>GitHub Gist</strong> atau server JSON Anda.<br/>
-                    3. Salin URL Raw-nya dan tempel di bawah ini untuk sinkronisasi.
-                  </p>
+                  <div className="p-4 bg-white/50 rounded-xl border border-blue-200">
+                    <p className="text-[10px] text-blue-800 font-medium leading-relaxed">
+                      <strong>Cara Pindah ke Cloud:</strong><br/>
+                      1. Klik <strong>Copy JSON</strong> di atas.<br/>
+                      2. Tempel (Paste) datanya ke file baru di <strong>GitHub Gist</strong>.<br/>
+                      3. Masukkan link Gist tersebut di bawah ini untuk menghubungkan.
+                    </p>
+                  </div>
                   
                   <input 
                     type="text" 
                     value={tempRemoteUrl} 
                     onChange={e => setTempRemoteUrl(e.target.value)} 
-                    placeholder="Contoh: https://gist.githubusercontent.com/user/raw/file.json" 
-                    className="w-full p-4 border rounded-xl text-[10px] bg-white outline-none focus:ring-2 focus:ring-blue-600"
+                    placeholder="Contoh: https://gist.github.com/user/id" 
+                    className="w-full p-4 border rounded-xl text-[10px] bg-white outline-none focus:ring-2 focus:ring-blue-600 font-mono"
                   />
                 </div>
 
                 <div className="flex gap-4">
                   <button 
-                    onClick={() => onSyncRemote(tempRemoteUrl)} 
-                    className="flex-1 bg-blue-600 text-white py-4 rounded-xl font-bold uppercase text-[10px] shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+                    onClick={handleSyncClick} 
+                    disabled={isSyncingLocal}
+                    className={`flex-1 ${isSyncingLocal ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} text-white py-4 rounded-xl font-bold uppercase text-[10px] shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2`}
                   >
-                    Connect & Sync
+                    {isSyncingLocal ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Menghubungkan...
+                      </>
+                    ) : (
+                      'Connect & Sync Sekarang'
+                    )}
                   </button>
                 </div>
               </div>
@@ -243,16 +311,19 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                     {remoteUrl ? `Tersambung ke Cloud` : 'Berjalan di Penyimpanan Lokal (Offline)'}
                   </span>
                 </div>
+                {remoteUrl && (
+                  <p className="mt-2 text-[8px] text-gray-400 break-all font-mono opacity-60 italic">{remoteUrl}</p>
+                )}
               </div>
             </div>
           )}
         </div>
 
-        <div className="p-8 bg-gray-50 flex gap-4 border-t">
-          <button onClick={onClose} className="flex-grow py-4 text-xs font-bold uppercase text-gray-400">Tutup</button>
+        <div className="p-8 bg-gray-50 flex gap-4 border-t shrink-0">
+          <button onClick={onClose} className="flex-grow py-4 text-xs font-bold uppercase text-gray-400 hover:text-gray-600 transition-colors">Tutup</button>
           <button 
             onClick={() => { onSave(tempSales, tempLogo, tempName, tempAddress, tempHeroBg); onClose(); }}
-            className="flex-grow-[2] bg-gray-900 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all shadow-xl"
+            className="flex-grow-[2] bg-gray-900 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all shadow-xl active:scale-[0.98]"
           >
             Simpan Perubahan
           </button>

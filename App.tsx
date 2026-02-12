@@ -17,7 +17,6 @@ import { SALES_INFO as DEFAULT_SALES, PROMOS as DEFAULT_PROMOS, INITIAL_PRODUCTS
 
 type ViewState = 'home' | 'about' | 'contact';
 
-// Fungsi helper untuk men-decode base64 yang mendukung karakter spesial (UTF-8)
 const safeAtob = (str: string) => {
   try {
     return decodeURIComponent(Array.prototype.map.call(atob(str), (c: string) => {
@@ -59,10 +58,8 @@ const App: React.FC = () => {
         const encodedData = urlParams.get('p');
         const activeRemote = urlRemote || remoteUrl;
         
-        // Mode Staff diaktifkan hanya jika ada parameter staff=true di URL
         setIsStaff(urlParams.get('staff') === 'true');
 
-        // PRIORITAS 1: Data dari Link Jualan (Parameter 'p')
         if (encodedData) {
           const decoded = safeAtob(encodedData);
           if (decoded) {
@@ -75,11 +72,9 @@ const App: React.FC = () => {
           }
         } 
         
-        // PRIORITAS 2: Sync Cloud jika ada remote URL
         if (activeRemote) {
           await handleSyncRemote(activeRemote);
         } else if (!encodedData) {
-          // PRIORITAS 3: Local Storage (hanya jika tidak ada data dari link 'p')
           const safeParse = (key: string, fallback: any) => {
             try {
               const item = localStorage.getItem(key);
@@ -110,16 +105,19 @@ const App: React.FC = () => {
   }, []);
 
   const handleSyncRemote = async (url: string) => {
+    if (!url) return null;
     setIsSyncing(true);
     try {
-      const response = await fetch(url + '?nocache=' + Date.now());
+      const response = await fetch(url + (url.includes('?') ? '&' : '?') + 'nocache=' + Date.now());
       if (!response.ok) throw new Error("Gagal mengambil data cloud");
       const remoteData = await response.json();
       applyData(remoteData);
       setRemoteUrl(url);
       localStorage.setItem('honda_remote_url', url);
+      return remoteData;
     } catch (err) {
       console.error("Cloud Sync Error:", err);
+      throw err;
     } finally {
       setIsSyncing(false);
     }
@@ -127,14 +125,34 @@ const App: React.FC = () => {
 
   const applyData = (data: any) => {
     if (!data) return;
-    if (data.products) setProducts(data.products);
-    if (data.promos) setPromos(data.promos);
-    // Jika data dari link 'p' menyertakan salesInfo, pastikan itu terpasang
-    if (data.salesInfo) setSalesInfo((prev) => ({ ...prev, ...data.salesInfo }));
-    if (data.logo) setLogo(data.logo);
-    if (data.heroBackground) setHeroBackground(data.heroBackground);
-    if (data.dealerName) setDealerName(data.dealerName);
-    if (data.dealerAddress) setDealerAddress(data.dealerAddress);
+    if (data.products) {
+      setProducts(data.products);
+      localStorage.setItem('honda_catalog', JSON.stringify(data.products));
+    }
+    if (data.promos) {
+      setPromos(data.promos);
+      localStorage.setItem('honda_promos', JSON.stringify(data.promos));
+    }
+    if (data.salesInfo) {
+      setSalesInfo((prev) => ({ ...prev, ...data.salesInfo }));
+      localStorage.setItem('honda_sales_info', JSON.stringify({ ...salesInfo, ...data.salesInfo }));
+    }
+    if (data.logo) {
+      setLogo(data.logo);
+      localStorage.setItem('honda_dealer_logo', data.logo);
+    }
+    if (data.heroBackground) {
+      setHeroBackground(data.heroBackground);
+      localStorage.setItem('honda_hero_bg', data.heroBackground);
+    }
+    if (data.dealerName) {
+      setDealerName(data.dealerName);
+      localStorage.setItem('honda_dealer_name', data.dealerName);
+    }
+    if (data.dealerAddress) {
+      setDealerAddress(data.dealerAddress);
+      localStorage.setItem('honda_dealer_address', data.dealerAddress);
+    }
   };
 
   const handleSaveAdminSettings = (newSales: SalesPerson, newLogo: string | null, newName: string, newAddress: string, newHeroBg: string) => {
@@ -203,8 +221,8 @@ const App: React.FC = () => {
       
       <main className="flex-grow">
         {isSyncing && (
-          <div className="bg-blue-600 text-white text-[10px] font-bold text-center py-1 uppercase tracking-widest animate-pulse">
-            Sinkronisasi Data...
+          <div className="bg-blue-600 text-white text-[10px] font-bold text-center py-1 uppercase tracking-widest animate-pulse sticky top-20 z-40">
+            Sinkronisasi Data Cloud...
           </div>
         )}
         {renderContent()}
