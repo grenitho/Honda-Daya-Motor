@@ -31,8 +31,8 @@ const safeAtob = (str: string) => {
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [promos, setPromos] = useState<Promo[]>(DEFAULT_PROMOS);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [promos, setPromos] = useState<Promo[]>([]);
   const [salesInfo, setSalesInfo] = useState<SalesPerson>(DEFAULT_SALES);
   
   const [logo, setLogo] = useState<string | null>(DEFAULT_LOGO_URL);
@@ -50,17 +50,16 @@ const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
 
-  // Helper untuk membersihkan URL agar parameter ?p= tidak menyebabkan reset saat refresh
   const clearUrlParams = () => {
     const url = new URL(window.location.href);
     if (url.searchParams.has('p') || url.searchParams.has('remote')) {
       url.searchParams.delete('p');
-      // Kita tetap pertahankan ?staff=true agar user tidak keluar dari mode admin
+      url.searchParams.delete('remote');
       window.history.replaceState({}, '', url.toString());
     }
   };
 
-  const applyData = useCallback((data: any) => {
+  const applyData = useCallback((data: any, markAsSetup = true) => {
     if (!data) return;
 
     if (data.products) {
@@ -94,6 +93,10 @@ const App: React.FC = () => {
       setDealerAddress(data.dealerAddress);
       localStorage.setItem('honda_dealer_address', data.dealerAddress);
     }
+
+    if (markAsSetup) {
+      localStorage.setItem('honda_setup_completed', 'true');
+    }
   }, []);
 
   const handleSyncRemote = async (url: string) => {
@@ -121,6 +124,7 @@ const App: React.FC = () => {
         const urlParams = new URLSearchParams(window.location.search);
         const urlRemote = urlParams.get('remote');
         const encodedData = urlParams.get('p');
+        const isSetupCompleted = localStorage.getItem('honda_setup_completed') === 'true';
         
         setIsStaff(urlParams.get('staff') === 'true');
 
@@ -135,14 +139,15 @@ const App: React.FC = () => {
           }
         };
 
-        const localProducts = safeParse('honda_catalog', INITIAL_PRODUCTS);
-        const localPromos = safeParse('honda_promos', DEFAULT_PROMOS);
+        // Jika setup belum pernah dilakukan, baru gunakan INITIAL_PRODUCTS dari kodingan
+        const localProducts = safeParse('honda_catalog', isSetupCompleted ? [] : INITIAL_PRODUCTS);
+        const localPromos = safeParse('honda_promos', isSetupCompleted ? [] : DEFAULT_PROMOS);
         const localSales = safeParse('honda_sales_info', DEFAULT_SALES);
 
         setProducts(localProducts);
         setPromos(localPromos);
         setSalesInfo(localSales);
-        setLogo(localStorage.getItem('honda_dealer_logo') || DEFAULT_LOGO_URL);
+        setLogo(localStorage.getItem('honda_dealer_logo') || (isSetupCompleted ? null : DEFAULT_LOGO_URL));
         setHeroBackground(localStorage.getItem('honda_hero_bg') || DEFAULT_HERO_BG_URL);
         setDealerName(localStorage.getItem('honda_dealer_name') || 'HONDA DAYA MOTOR SUNGAILIAT');
         setDealerAddress(localStorage.getItem('honda_dealer_address') || 'Jl. Batin Tikal No.423, Karya Makmur, Kec. Pemali, Kabupaten Bangka, Kepulauan Bangka Belitung 33215');
@@ -150,17 +155,17 @@ const App: React.FC = () => {
         // 2. SINKRONISASI CLOUD (Jika ada parameter remote baru di URL)
         if (urlRemote) {
           await handleSyncRemote(urlRemote);
-          clearUrlParams(); // Bersihkan agar tidak fetch terus menerus
+          clearUrlParams();
         }
 
-        // 3. OVERRIDE DENGAN DATA LINK (Hanya jika local storage kosong atau ini klik pertama)
+        // 3. OVERRIDE DENGAN DATA LINK
         if (encodedData) {
           const decoded = safeAtob(encodedData);
           if (decoded) {
             try {
               const data = JSON.parse(decoded);
               applyData(data);
-              clearUrlParams(); // CRITICAL: Bersihkan URL setelah data diterapkan
+              clearUrlParams();
             } catch (e) {
               console.error("Gagal parse data link:", e);
             }
@@ -188,6 +193,7 @@ const App: React.FC = () => {
     localStorage.setItem('honda_hero_bg', newHeroBg);
     localStorage.setItem('honda_dealer_name', newName);
     localStorage.setItem('honda_dealer_address', newAddress);
+    localStorage.setItem('honda_setup_completed', 'true'); // Tandai bahwa admin sudah mulai mengelola
   };
 
   const handleNavigate = (view: ViewState) => {
@@ -199,6 +205,13 @@ const App: React.FC = () => {
   const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleResetData = () => {
+    if (confirm("⚠️ PERINGATAN: Semua data produk, promo, dan profil yang sudah Anda masukkan akan DIHAPUS dan kembali ke contoh awal dealer. Lanjutkan?")) {
+      localStorage.clear();
+      window.location.reload();
+    }
   };
 
   if (!isInitialized) {
@@ -259,6 +272,7 @@ const App: React.FC = () => {
         logo={logo} heroBackground={heroBackground}
         dealerName={dealerName} dealerAddress={dealerAddress} 
         onSave={handleSaveAdminSettings}
+        onReset={handleResetData}
         remoteUrl={remoteUrl} onSyncRemote={handleSyncRemote}
       />
       <SalesProfileModal 
@@ -266,6 +280,7 @@ const App: React.FC = () => {
         salesInfo={salesInfo} onSave={(newSales) => {
           setSalesInfo(newSales);
           localStorage.setItem('honda_sales_info', JSON.stringify(newSales));
+          localStorage.setItem('honda_setup_completed', 'true');
         }}
         remoteUrl={remoteUrl}
       />
@@ -274,6 +289,7 @@ const App: React.FC = () => {
         promos={promos} onSave={(newPromos) => {
           setPromos(newPromos);
           localStorage.setItem('honda_promos', JSON.stringify(newPromos));
+          localStorage.setItem('honda_setup_completed', 'true');
         }}
       />
       <AdminProductModal 
@@ -281,6 +297,7 @@ const App: React.FC = () => {
         products={products} onSave={(newProducts) => {
           setProducts(newProducts);
           localStorage.setItem('honda_catalog', JSON.stringify(newProducts));
+          localStorage.setItem('honda_setup_completed', 'true');
         }}
       />
     </div>

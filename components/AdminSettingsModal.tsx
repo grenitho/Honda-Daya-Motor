@@ -26,10 +26,11 @@ interface AdminSettingsModalProps {
   remoteUrl: string | null;
   onSyncRemote: (url: string) => Promise<any>;
   onSave: (newSalesInfo: SalesPerson, newLogo: string | null, newName: string, newAddress: string, newHeroBg: string) => void;
+  onReset: () => void;
 }
 
 const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ 
-  isOpen, onClose, salesInfo, products, promos, logo, heroBackground, dealerName, dealerAddress, remoteUrl, onSyncRemote, onSave 
+  isOpen, onClose, salesInfo, products, promos, logo, heroBackground, dealerName, dealerAddress, remoteUrl, onSyncRemote, onSave, onReset 
 }) => {
   const [activeTab, setActiveTab] = useState<'admin' | 'cloud'>('admin');
   const [tempSales, setTempSales] = useState<SalesPerson>(salesInfo);
@@ -116,10 +117,7 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
       return;
     }
 
-    // SMART URL: Otomatis konversi link Gist biasa ke link RAW
     if (targetUrl.includes('gist.github.com') && !targetUrl.includes('/raw')) {
-      // Jika link formatnya https://gist.github.com/username/id
-      // Kita coba tambahkan /raw di belakangnya
       if (!targetUrl.endsWith('/raw')) {
         targetUrl = targetUrl.replace(/\/$/, '') + '/raw';
       }
@@ -134,7 +132,7 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
         if (data.salesInfo) setTempSales((prev) => ({ ...prev, ...data.salesInfo }));
         if (data.logo) setTempLogo(data.logo);
         if (data.heroBackground) setTempHeroBg(data.heroBackground);
-        setTempRemoteUrl(targetUrl); // Update input field dengan URL yang sudah di-fix
+        setTempRemoteUrl(targetUrl);
         
         alert("Sinkronisasi Cloud Berhasil!\nData telah diperbarui di formulir. Klik 'Simpan Perubahan' di bawah untuk menerapkan ke seluruh website.");
       }
@@ -260,7 +258,7 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                       onClick={handleDownloadConfig}
                       className="flex items-center gap-1.5 text-[9px] font-black text-gray-500 uppercase tracking-widest hover:text-honda-red transition-colors"
                     >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 16v1a2 2 0 002 2h12a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                       Download
                     </button>
                   </div>
@@ -314,6 +312,17 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                 {remoteUrl && (
                   <p className="mt-2 text-[8px] text-gray-400 break-all font-mono opacity-60 italic">{remoteUrl}</p>
                 )}
+              </div>
+
+              {/* Reset Section - Dangerous Zone */}
+              <div className="mt-12 pt-8 border-t border-red-50 flex flex-col items-center">
+                <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-4 italic">Emergency Zone</p>
+                <button 
+                  onClick={onReset}
+                  className="text-[9px] font-bold text-gray-300 hover:text-honda-red uppercase tracking-widest transition-colors"
+                >
+                  Reset to Factory Defaults
+                </button>
               </div>
             </div>
           )}
