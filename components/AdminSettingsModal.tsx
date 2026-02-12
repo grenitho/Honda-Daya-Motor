@@ -42,13 +42,44 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
   }, [isOpen, salesInfo, logo, heroBackground, dealerName, dealerAddress]);
 
   const handleSaveFirebase = () => {
+    let rawInput = fbConfig.trim();
+    
+    // 1. Ambil hanya bagian di dalam kurung kurawal { ... }
+    const match = rawInput.match(/\{[\s\S]*\}/);
+    if (!match) {
+      alert("❌ Format tidak dikenali! Pastikan Anda menyalin seluruh kode yang ada di Firebase Console.");
+      return;
+    }
+    
+    let jsonContent = match[0];
+
     try {
-      JSON.parse(fbConfig); // Validasi JSON
-      localStorage.setItem('honda_firebase_config', fbConfig);
-      alert("Konfigurasi Firebase Tersimpan! Silakan muat ulang halaman (F5) untuk mengaktifkan Cloud Sync.");
+      /**
+       * 2. Proses Konversi dari JS Object ke JSON Murni:
+       * - Tambahkan kutip dua pada kunci (keys) jika belum ada: apiKey -> "apiKey"
+       * - Ubah kutip satu ke kutip dua pada nilai: 'value' -> "value"
+       * - Hapus koma terakhir yang menggantung sebelum tutup kurung: , } -> }
+       */
+      const fixedJson = jsonContent
+        .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":') 
+        .replace(/'/g, '"')
+        .replace(/,(\s*})/g, '$1}');
+
+      // Validasi dengan JSON.parse
+      const parsed = JSON.parse(fixedJson);
+      
+      if (!parsed.apiKey || !parsed.projectId) {
+        throw new Error("Data tidak lengkap");
+      }
+      
+      // Simpan dalam format JSON String yang benar
+      localStorage.setItem('honda_firebase_config', JSON.stringify(parsed));
+      
+      alert("✅ BERHASIL! Konfigurasi terdeteksi dan diperbaiki otomatis. Website akan dimuat ulang...");
       window.location.reload();
     } catch (e) {
-      alert("Format Konfigurasi Salah. Pastikan berupa kode JSON yang valid dari Firebase Console.");
+      console.error("Format Error:", e);
+      alert("❌ Gagal memproses! Coba salin ulang kode dari Firebase Console. Pastikan tidak ada karakter yang terpotong.");
     }
   };
 
@@ -112,21 +143,24 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
           {activeTab === 'firebase' && (
             <div className="space-y-6 animate-in fade-in duration-500">
               <div className="bg-orange-50 border border-orange-100 p-6 rounded-3xl">
-                <h3 className="text-orange-900 font-black uppercase italic text-sm mb-4">Integrasi Database Cloud</h3>
-                <ol className="text-[10px] text-orange-800 space-y-2 list-decimal list-inside leading-relaxed font-medium">
-                  <li>Buat project di <strong>Firebase Console</strong>.</li>
-                  <li>Daftarkan Web App dan salin <strong>Firebase Config</strong> (Format JSON).</li>
-                  <li>Tempel kode config di bawah ini.</li>
-                  <li>Aktifkan <strong>Cloud Firestore</strong> dalam Mode Tes di Firebase Console.</li>
+                <h3 className="text-orange-900 font-black uppercase italic text-sm mb-4">Langkah Terakhir Koneksi Cloud</h3>
+                <ol className="text-[10px] text-orange-800 space-y-2 list-decimal ml-4">
+                  {/* Fixed JSX parsing error caused by literal curly braces and spread operator inside code tag */}
+                  <li>Copy seluruh kode <code>{"const firebaseConfig = { ... };"}</code> dari layar Firebase Anda.</li>
+                  <li>Tempel (Paste) di kolom bawah.</li>
+                  <li>Klik Simpan. Aplikasi akan otomatis mengubahnya menjadi format JSON yang benar.</li>
                 </ol>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[9px] font-black uppercase text-orange-600 tracking-widest">Firebase Config JSON</label>
+                <div className="flex justify-between items-end">
+                    <label className="text-[9px] font-black uppercase text-orange-600 tracking-widest">Paste Kode Firebase Di Sini</label>
+                    <button onClick={() => setFbConfig('')} className="text-[8px] font-bold text-orange-400 hover:text-orange-600 uppercase">Bersihkan</button>
+                </div>
                 <textarea 
                   value={fbConfig}
                   onChange={e => setFbConfig(e.target.value)}
-                  placeholder='{"apiKey": "...", "projectId": "...", ...}'
+                  placeholder='Paste kode "const firebaseConfig = { ... }" di sini...'
                   className="w-full p-4 border-2 border-orange-100 rounded-2xl text-[10px] font-mono h-48 bg-orange-50/30 outline-none focus:border-orange-500 transition-colors"
                 />
               </div>
@@ -135,14 +169,14 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                 onClick={handleSaveFirebase}
                 className="w-full bg-orange-500 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-orange-100 hover:bg-orange-600 active:scale-95 transition-all"
               >
-                Simpan & Aktifkan Real-time Sync
+                Simpan & Aktifkan Cloud
               </button>
             </div>
           )}
         </div>
 
         <div className="p-8 bg-gray-50 flex gap-4 border-t">
-          <button onClick={onClose} className="flex-1 py-4 text-xs font-bold uppercase text-gray-400">Batal</button>
+          <button onClick={onClose} className="flex-1 py-4 text-xs font-bold uppercase text-gray-400">Tutup</button>
           <button 
             onClick={() => { onSave(tempSales, tempLogo, tempName, tempAddress, tempHeroBg); onClose(); }}
             className="flex-[2] bg-gray-900 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all"
