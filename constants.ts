@@ -1,15 +1,15 @@
 
 import { Product, SalesPerson, Promo } from './types';
 
-/**
- * TIPS UNTUK LOGO & BACKGROUND:
- * 1. Upload file Anda ke https://imgbb.com/
- * 2. Setelah upload, pilih menu "Direct Link"
- * 3. Copy link tersebut (biasanya berakhiran .png atau .jpg)
- * 4. Ganti URL di bawah ini dengan link tersebut.
- */
 export const DEFAULT_LOGO_URL = 'https://i.ibb.co.com/PG2HkxGr/LOGO-DM-PURE.png'; 
 export const DEFAULT_HERO_BG_URL = 'https://i.ibb.co.com/d4hY2f7y/Whats-App-Image-2026-02-11-at-20-07-39.jpg';
+
+export const DEFAULT_STORY = {
+  title: 'Dealer Terpercaya di',
+  city: 'SUNGAILIAT',
+  text1: 'Dealer Honda kami berdiri dengan komitmen untuk menjadi mitra berkendara terbaik bagi masyarakat Bangka Belitung. Kami tidak hanya sekadar menjual sepeda motor, tetapi kami memberikan solusi transportasi yang aman, nyaman, dan prestisius.',
+  text2: 'Dengan layanan purna jual yang profesional dan ketersediaan suku cadang asli, kami memastikan setiap pelanggan merasakan "One Heart" bersama Honda di setiap perjalanan mereka.'
+};
 
 export const SALES_INFO: SalesPerson = {
   name: 'SYAMILA MUTHIA DHELVINA', 
@@ -19,7 +19,6 @@ export const SALES_INFO: SalesPerson = {
   phone: '+62 85758442561', 
   email: 'syamilavina33@gmail.com',
   heroBadge: 'SALES DIGITAL HONDA',
-  // Kita gunakan simbol '|' untuk menandakan baris baru agar titik-titik menempel di kata HATI
   heroHeadline: 'SALAM SATU | HATI.....', 
   heroIntro: "Selamat datang di dealer resmi Honda Daya Motor Sungailiat. Saya siap membantu Anda memilih Motor Honda terbaik dengan penawaran spesial.",
   bio: 'Saya siap membantu Anda mendapatkan Motor Honda impian dengan proses yang transparan, DP rendah, dan cicilan yang bisa dinegosiasikan. Spesialis Big Bike & Matic Premium.',

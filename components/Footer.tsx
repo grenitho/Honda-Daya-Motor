@@ -5,9 +5,10 @@ import { SalesPerson } from '../types';
 interface FooterProps {
   dealerName: string;
   salesInfo: SalesPerson;
+  logo: string | null;
 }
 
-const Footer: React.FC<FooterProps> = ({ dealerName, salesInfo }) => {
+const Footer: React.FC<FooterProps> = ({ dealerName, salesInfo, logo }) => {
   const nameParts = dealerName.split(' ');
   const firstName = nameParts[0];
   const restName = nameParts.slice(1).join(' ');
@@ -17,13 +18,22 @@ const Footer: React.FC<FooterProps> = ({ dealerName, salesInfo }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 bg-honda-red rounded-sm flex items-center justify-center">
-                <span className="text-white font-black text-lg italic">H</span>
+            <div className="flex items-center gap-4 mb-6">
+              {/* Cek jika ada logo gambar, tampilkan gambar. Jika tidak, tampilkan icon H default */}
+              {logo ? (
+                <img src={logo} alt="Logo Footer" className="h-12 w-auto object-contain brightness-0 invert" />
+              ) : (
+                <div className="w-8 h-8 bg-honda-red rounded-sm flex items-center justify-center">
+                  <span className="text-white font-black text-lg italic">H</span>
+                </div>
+              )}
+              
+              <div className="flex flex-col">
+                <span className="text-xl font-extrabold tracking-tighter uppercase leading-none">
+                  {firstName} <span className="text-gray-600 font-light">{restName}</span>
+                </span>
+                <span className="text-[8px] font-bold text-gray-500 tracking-[0.3em] uppercase mt-1">Authorized Dealer</span>
               </div>
-              <span className="text-xl font-extrabold tracking-tighter uppercase">
-                {firstName} <span className="text-gray-600 font-light">{restName}</span>
-              </span>
             </div>
             <p className="text-gray-400 max-w-sm mb-8 font-light leading-relaxed">
               Kami adalah dealer resmi {dealerName} yang berkomitmen memberikan pengalaman berkendara terbaik melalui produk berkualitas dan layanan profesional.
