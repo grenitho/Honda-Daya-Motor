@@ -51,15 +51,19 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
       });
       setShowEditor(true);
     } catch (error: any) {
-      console.error(error);
+      console.error("AI Fetch Error:", error);
       const msg = error.message || "Gagal mengambil data AI.";
       setErrorMsg(msg);
       
-      // Jika error, tetap beri pilihan isi manual
-      if (confirm(`${msg}\n\nIngin tetap lanjut dengan mengisi data secara manual?`)) {
+      // Memberikan opsi manual jika AI gagal dengan info detail
+      const confirmManual = confirm(
+        `Gagal mengambil data via Gemini Pro.\n\nDetail Error: ${msg}\n\nApakah Anda ingin mengisi data secara manual?`
+      );
+      
+      if (confirmManual) {
         setShowEditor(true);
         setEditedProduct({
-          name,
+          name: name || '',
           image: image as string,
           price: 'Rp ',
           category: 'Matic',
@@ -117,7 +121,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
               )}
 
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nama Unit (AI akan mencari spesifikasinya)</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nama Unit (Misal: Honda CUV e:)</label>
                 <input 
                   type="text" 
                   value={name}
@@ -133,7 +137,10 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
                   {image ? (
                     <img src={image} className="w-full h-full object-cover" alt="Preview" />
                   ) : (
-                    <span className="text-gray-400 text-xs font-bold uppercase">Klik/Drop Gambar Unit</span>
+                    <div className="text-center">
+                      <p className="text-gray-400 text-xs font-bold uppercase mb-1">Klik/Drop Gambar Unit</p>
+                      <p className="text-[8px] text-gray-300 uppercase tracking-widest font-black">Maksimal 2MB disarankan</p>
+                    </div>
                   )}
                   <input type="file" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
                 </div>
@@ -142,15 +149,15 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
               <button 
                 onClick={handleFetchAI}
                 disabled={loading || !name || !image}
-                className="w-full bg-gray-900 text-white font-black py-5 rounded-2xl uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+                className="w-full bg-gray-900 text-white font-black py-5 rounded-2xl uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center gap-3 shadow-xl"
               >
                 {loading ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Gemini Sedang Berpikir...</span>
+                    <span>Gemini Pro Sedang Menganalisa...</span>
                   </>
                 ) : (
-                  'Ambil Spek via Gemini AI'
+                  'Ambil Spek via Gemini Pro'
                 )}
               </button>
             </div>
@@ -161,12 +168,12 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
                   <h3 className="text-xs font-black uppercase text-honda-red italic underline">Data Dasar</h3>
                   <div className="space-y-3">
                     <input 
-                      type="text" value={editedProduct.name} 
+                      type="text" value={editedProduct.name || ''} 
                       onChange={e => setEditedProduct({...editedProduct, name: e.target.value})}
                       placeholder="Nama Unit" className="w-full p-3 border rounded-xl text-xs font-bold"
                     />
                     <select 
-                      value={editedProduct.category} 
+                      value={editedProduct.category || 'Matic'} 
                       onChange={e => setEditedProduct({...editedProduct, category: e.target.value as any})}
                       className="w-full p-3 border rounded-xl text-xs font-bold bg-white"
                     >
@@ -177,14 +184,14 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
                       <option value="EV">EV</option>
                     </select>
                     <input 
-                      type="text" value={editedProduct.price} 
+                      type="text" value={editedProduct.price || ''} 
                       onChange={e => setEditedProduct({...editedProduct, price: e.target.value})}
                       placeholder="Harga (Rp ...)" className="w-full p-3 border rounded-xl text-xs"
                     />
                     <div className="space-y-1">
-                      <label className="text-[8px] uppercase font-bold text-gray-400 ml-1">Deskripsi Unit (Auto-Generated)</label>
+                      <label className="text-[8px] uppercase font-bold text-gray-400 ml-1">Deskripsi Unit</label>
                       <textarea 
-                        value={editedProduct.description} 
+                        value={editedProduct.description || ''} 
                         onChange={e => setEditedProduct({...editedProduct, description: e.target.value})}
                         placeholder="Deskripsi Singkat" className="w-full p-3 border rounded-xl text-[10px] leading-relaxed h-40 resize-none font-medium"
                       />
