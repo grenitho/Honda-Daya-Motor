@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Navbar.tsx';
 import Footer from './components/Footer.tsx';
 import MapSection from './components/MapSection.tsx';
@@ -50,58 +50,41 @@ const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
 
-  useEffect(() => {
-    const initializeData = async () => {
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlRemote = urlParams.get('remote');
-        const encodedData = urlParams.get('p');
-        const activeRemote = urlRemote || remoteUrl;
-        
-        setIsStaff(urlParams.get('staff') === 'true');
+  // Gunakan useCallback untuk menghindari masalah closure dan re-render
+  const applyData = useCallback((data: any) => {
+    if (!data) return;
 
-        if (encodedData) {
-          const decoded = safeAtob(encodedData);
-          if (decoded) {
-            try {
-              const data = JSON.parse(decoded);
-              applyData(data);
-            } catch (e) {
-              console.error("Gagal parse data link:", e);
-            }
-          }
-        } 
-        
-        if (activeRemote) {
-          await handleSyncRemote(activeRemote);
-        } else if (!encodedData) {
-          const safeParse = (key: string, fallback: any) => {
-            try {
-              const item = localStorage.getItem(key);
-              if (!item) return fallback;
-              return JSON.parse(item);
-            } catch (e) {
-              return fallback;
-            }
-          };
-
-          setProducts(safeParse('honda_catalog', INITIAL_PRODUCTS));
-          setPromos(safeParse('honda_promos', DEFAULT_PROMOS));
-          setSalesInfo(safeParse('honda_sales_info', DEFAULT_SALES));
-          
-          setLogo(localStorage.getItem('honda_dealer_logo') || DEFAULT_LOGO_URL);
-          setHeroBackground(localStorage.getItem('honda_hero_bg') || DEFAULT_HERO_BG_URL);
-          setDealerName(localStorage.getItem('honda_dealer_name') || 'HONDA DAYA MOTOR SUNGAILIAT');
-          setDealerAddress(localStorage.getItem('honda_dealer_address') || 'Jl. Batin Tikal No.423, Karya Makmur, Kec. Pemali, Kabupaten Bangka, Kepulauan Bangka Belitung 33215');
-        }
-      } catch (err) {
-        console.error("Initialization error:", err);
-      } finally {
-        setIsInitialized(true);
-      }
-    };
-
-    initializeData();
+    if (data.products) {
+      setProducts(data.products);
+      localStorage.setItem('honda_catalog', JSON.stringify(data.products));
+    }
+    if (data.promos) {
+      setPromos(data.promos);
+      localStorage.setItem('honda_promos', JSON.stringify(data.promos));
+    }
+    if (data.salesInfo) {
+      setSalesInfo((prev) => {
+        const updated = { ...prev, ...data.salesInfo };
+        localStorage.setItem('honda_sales_info', JSON.stringify(updated));
+        return updated;
+      });
+    }
+    if (data.logo) {
+      setLogo(data.logo);
+      localStorage.setItem('honda_dealer_logo', data.logo);
+    }
+    if (data.heroBackground) {
+      setHeroBackground(data.heroBackground);
+      localStorage.setItem('honda_hero_bg', data.heroBackground);
+    }
+    if (data.dealerName) {
+      setDealerName(data.dealerName);
+      localStorage.setItem('honda_dealer_name', data.dealerName);
+    }
+    if (data.dealerAddress) {
+      setDealerAddress(data.dealerAddress);
+      localStorage.setItem('honda_dealer_address', data.dealerAddress);
+    }
   }, []);
 
   const handleSyncRemote = async (url: string) => {
@@ -123,37 +106,62 @@ const App: React.FC = () => {
     }
   };
 
-  const applyData = (data: any) => {
-    if (!data) return;
-    if (data.products) {
-      setProducts(data.products);
-      localStorage.setItem('honda_catalog', JSON.stringify(data.products));
-    }
-    if (data.promos) {
-      setPromos(data.promos);
-      localStorage.setItem('honda_promos', JSON.stringify(data.promos));
-    }
-    if (data.salesInfo) {
-      setSalesInfo((prev) => ({ ...prev, ...data.salesInfo }));
-      localStorage.setItem('honda_sales_info', JSON.stringify({ ...salesInfo, ...data.salesInfo }));
-    }
-    if (data.logo) {
-      setLogo(data.logo);
-      localStorage.setItem('honda_dealer_logo', data.logo);
-    }
-    if (data.heroBackground) {
-      setHeroBackground(data.heroBackground);
-      localStorage.setItem('honda_hero_bg', data.heroBackground);
-    }
-    if (data.dealerName) {
-      setDealerName(data.dealerName);
-      localStorage.setItem('honda_dealer_name', data.dealerName);
-    }
-    if (data.dealerAddress) {
-      setDealerAddress(data.dealerAddress);
-      localStorage.setItem('honda_dealer_address', data.dealerAddress);
-    }
-  };
+  useEffect(() => {
+    const initializeData = async () => {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlRemote = urlParams.get('remote');
+        const encodedData = urlParams.get('p');
+        const activeRemote = urlRemote || remoteUrl;
+        
+        setIsStaff(urlParams.get('staff') === 'true');
+
+        // 1. LOAD LOCAL STORAGE TERLEBIH DAHULU (Default)
+        const safeParse = (key: string, fallback: any) => {
+          try {
+            const item = localStorage.getItem(key);
+            if (!item) return fallback;
+            return JSON.parse(item);
+          } catch (e) {
+            return fallback;
+          }
+        };
+
+        setProducts(safeParse('honda_catalog', INITIAL_PRODUCTS));
+        setPromos(safeParse('honda_promos', DEFAULT_PROMOS));
+        setSalesInfo(safeParse('honda_sales_info', DEFAULT_SALES));
+        setLogo(localStorage.getItem('honda_dealer_logo') || DEFAULT_LOGO_URL);
+        setHeroBackground(localStorage.getItem('honda_hero_bg') || DEFAULT_HERO_BG_URL);
+        setDealerName(localStorage.getItem('honda_dealer_name') || 'HONDA DAYA MOTOR SUNGAILIAT');
+        setDealerAddress(localStorage.getItem('honda_dealer_address') || 'Jl. Batin Tikal No.423, Karya Makmur, Kec. Pemali, Kabupaten Bangka, Kepulauan Bangka Belitung 33215');
+
+        // 2. SINKRONISASI CLOUD (Jika ada)
+        if (activeRemote) {
+          await handleSyncRemote(activeRemote);
+        }
+
+        // 3. OVERRIDE DENGAN DATA LINK (Prioritas Utama)
+        // Jika di link ada data profile baru, ini akan menimpa data dari Gist Cloud.
+        if (encodedData) {
+          const decoded = safeAtob(encodedData);
+          if (decoded) {
+            try {
+              const data = JSON.parse(decoded);
+              applyData(data);
+            } catch (e) {
+              console.error("Gagal parse data link:", e);
+            }
+          }
+        } 
+      } catch (err) {
+        console.error("Initialization error:", err);
+      } finally {
+        setIsInitialized(true);
+      }
+    };
+
+    initializeData();
+  }, [remoteUrl, applyData]); // Ditambahkan dependency agar fungsi sinkron
 
   const handleSaveAdminSettings = (newSales: SalesPerson, newLogo: string | null, newName: string, newAddress: string, newHeroBg: string) => {
     setSalesInfo(newSales);
