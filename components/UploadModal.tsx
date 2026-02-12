@@ -14,11 +14,11 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
   const [name, setName] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   const [showEditor, setShowEditor] = useState(false);
   const [editedProduct, setEditedProduct] = useState<Partial<Product>>({});
 
-  // Sync state if editing
   useEffect(() => {
     if (productToEdit) {
       setName(productToEdit.name);
@@ -42,6 +42,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
   const handleFetchAI = async () => {
     if (!name || !image) return;
     setLoading(true);
+    setErrorMsg(null);
     try {
       const aiDetails = await generateBikeDetails(name);
       setEditedProduct({
@@ -49,19 +50,25 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
         image: image as string,
       });
       setShowEditor(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Gagal mengambil data AI. Silakan isi manual.");
-      setShowEditor(true);
-      setEditedProduct({
-        name,
-        image: image as string,
-        price: 'Rp ',
-        category: 'Matic',
-        specs: { engine: '', power: '', torque: '', transmission: '', fuelCapacity: '' },
-        features: [],
-        colors: []
-      });
+      const msg = error.message || "Gagal mengambil data AI.";
+      setErrorMsg(msg);
+      
+      // Jika error, tetap beri pilihan isi manual
+      if (confirm(`${msg}\n\nIngin tetap lanjut dengan mengisi data secara manual?`)) {
+        setShowEditor(true);
+        setEditedProduct({
+          name,
+          image: image as string,
+          price: 'Rp ',
+          category: 'Matic',
+          description: '',
+          specs: { engine: '', power: '', torque: '', transmission: '', fuelCapacity: '' },
+          features: [],
+          colors: []
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -84,6 +91,8 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
     setImage(null);
     setShowEditor(false);
     setEditedProduct({});
+    setErrorMsg(null);
+    setLoading(false);
   };
 
   if (!isOpen) return null;
@@ -101,6 +110,12 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
         <div className="p-8 overflow-y-auto space-y-6">
           {!showEditor ? (
             <div className="space-y-6">
+              {errorMsg && (
+                <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-[10px] font-bold text-red-600 uppercase tracking-widest animate-pulse">
+                  ⚠️ Error: {errorMsg}
+                </div>
+              )}
+
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nama Unit (AI akan mencari spesifikasinya)</label>
                 <input 
@@ -129,11 +144,18 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
                 disabled={loading || !name || !image}
                 className="w-full bg-gray-900 text-white font-black py-5 rounded-2xl uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center gap-3"
               >
-                {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'Ambil Spek via Gemini AI'}
+                {loading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Gemini Sedang Berpikir...</span>
+                  </>
+                ) : (
+                  'Ambil Spek via Gemini AI'
+                )}
               </button>
             </div>
           ) : (
-            <div className="space-y-8">
+            <div className="space-y-8 animate-in fade-in duration-500">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-4">
                   <h3 className="text-xs font-black uppercase text-honda-red italic underline">Data Dasar</h3>
@@ -159,11 +181,14 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
                       onChange={e => setEditedProduct({...editedProduct, price: e.target.value})}
                       placeholder="Harga (Rp ...)" className="w-full p-3 border rounded-xl text-xs"
                     />
-                    <textarea 
-                      value={editedProduct.description} 
-                      onChange={e => setEditedProduct({...editedProduct, description: e.target.value})}
-                      placeholder="Deskripsi Singkat" className="w-full p-3 border rounded-xl text-xs h-32"
-                    />
+                    <div className="space-y-1">
+                      <label className="text-[8px] uppercase font-bold text-gray-400 ml-1">Deskripsi Unit (Auto-Generated)</label>
+                      <textarea 
+                        value={editedProduct.description} 
+                        onChange={e => setEditedProduct({...editedProduct, description: e.target.value})}
+                        placeholder="Deskripsi Singkat" className="w-full p-3 border rounded-xl text-[10px] leading-relaxed h-40 resize-none font-medium"
+                      />
+                    </div>
                   </div>
                 </div>
                 
