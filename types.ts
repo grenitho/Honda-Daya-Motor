@@ -7,7 +7,7 @@ export interface ProductSpecs {
   fuelCapacity: string;
 }
 
-export type MotorcycleCategory = 'Matic' | 'Sport' | 'Cub' | 'EV' | 'Big Bike';
+export type MotorcycleCategory = 'Matic' | 'Sport' | 'Cub' | 'EV';
 
 export interface Product {
   id: string;

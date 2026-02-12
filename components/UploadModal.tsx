@@ -167,7 +167,6 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
                       <option value="Sport">Sport</option>
                       <option value="Cub">Cub</option>
                       <option value="EV">EV</option>
-                      <option value="Big Bike">Big Bike</option>
                     </select>
                   </div>
                   <div>

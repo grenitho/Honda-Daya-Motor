@@ -23,7 +23,7 @@ export const SALES_INFO: SalesPerson = {
   heroBadge: 'SALES DIGITAL HONDA',
   heroHeadline: 'SALAM SATU | HATI.....', 
   heroIntro: "Selamat datang di dealer resmi Honda Daya Motor Sungailiat. Saya siap membantu Anda memilih Motor Honda terbaik dengan penawaran spesial.",
-  bio: 'Saya siap membantu Anda mendapatkan Motor Honda impian dengan proses yang transparan, DP rendah, dan cicilan yang bisa dinegosiasikan. Spesialis Big Bike & Matic Premium.',
+  bio: 'Saya siap membantu Anda mendapatkan Motor Honda impian dengan proses yang transparan, DP rendah, dan cicilan yang bisa dinegosiasikan. Spesialis Matic & Sport Premium.',
   experience: '5+ Tahun',
   facebook: 'https://facebook.com',
   instagram: 'https://instagram.com',
@@ -51,23 +51,6 @@ export const PROMOS: Promo[] = [
 ];
 
 export const INITIAL_PRODUCTS: Product[] = [
-  {
-    id: '1',
-    name: 'Honda CBR1000RR-R Fireblade SP',
-    image: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?q=80&w=800&auto=format&fit=crop',
-    price: 'Rp 1.077.000.000',
-    category: 'Big Bike',
-    description: 'Ekspresi tertinggi dari performa balap. Dibangun untuk lintasan, lahir untuk jalan raya.',
-    specs: {
-      engine: '999cc Liquid-cooled 4-stroke 16-valve DOHC Inline-4',
-      power: '160 kW / 14,500 rpm',
-      torque: '113 Nm / 12,500 rpm',
-      transmission: '6-speed Manual',
-      fuelCapacity: '16.1 Liters'
-    },
-    features: ['Aerodynamic Winglets', 'Ohlins Electronic Control', 'Brembo Stylema Calipers', 'Quick Shifter'],
-    colors: ['Grand Prix Red', 'Matte Pearl Morion Black']
-  },
   {
     id: '2',
     name: 'Honda PCX 160',
@@ -104,4 +87,4 @@ export const INITIAL_PRODUCTS: Product[] = [
   }
 ];
 
-export const CATEGORIES = ['All', 'Matic', 'Sport', 'Cub', 'EV', 'Big Bike'];
+export const CATEGORIES = ['All', 'Matic', 'Sport', 'Cub', 'EV'];
