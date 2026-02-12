@@ -3,12 +3,13 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { GeminiBikeResponse } from "../types.ts";
 
 export const generateBikeDetails = async (bikeName: string): Promise<GeminiBikeResponse> => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
+  // Use the API key exclusively from process.env.API_KEY
+  if (!process.env.API_KEY) {
     throw new Error("API Key tidak ditemukan. Pastikan environment API_KEY sudah diset.");
   }
 
-  const ai = new GoogleGenAI({ apiKey });
+  // Create a new GoogleGenAI instance right before making an API call
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
     // Menggunakan gemini-3-pro-preview untuk tugas ekstraksi data yang kompleks
@@ -54,13 +55,14 @@ export const generateBikeDetails = async (bikeName: string): Promise<GeminiBikeR
       }
     });
 
+    // Access the .text property directly to get the response content
     const text = response.text;
     if (!text) {
       throw new Error("Respon AI kosong atau diblokir oleh filter keamanan.");
     }
 
     try {
-      return JSON.parse(text);
+      return JSON.parse(text.trim());
     } catch (parseError) {
       console.error("JSON Parse Error. Raw text:", text);
       throw new Error("Format data yang diterima dari AI tidak valid.");

@@ -11,20 +11,24 @@ interface UploadModalProps {
 }
 
 const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, productToEdit }) => {
-  const [name, setName] = useState('');
-  const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
   
-  const [showEditor, setShowEditor] = useState(false);
-  const [editedProduct, setEditedProduct] = useState<Partial<Product>>({});
+  // State untuk form data
+  const [formData, setFormData] = useState<Partial<Product>>({
+    name: '',
+    price: '',
+    category: 'Matic',
+    description: '',
+    image: '',
+    specs: { engine: '', power: '', torque: '', transmission: '', fuelCapacity: '' },
+    features: [],
+    colors: []
+  });
 
   useEffect(() => {
     if (productToEdit) {
-      setName(productToEdit.name);
-      setImage(productToEdit.image);
-      setEditedProduct(productToEdit);
-      setShowEditor(true);
+      setFormData(productToEdit);
     } else {
       reset();
     }
@@ -34,68 +38,62 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => setImage(reader.result as string);
+      reader.onloadend = () => setFormData({ ...formData, image: reader.result as string });
       reader.readAsDataURL(file);
     }
   };
 
   const handleFetchAI = async () => {
-    if (!name || !image) return;
+    if (!formData.name) {
+      alert("Masukkan nama unit terlebih dahulu untuk dibantu AI.");
+      return;
+    }
     setLoading(true);
-    setErrorMsg(null);
+    setAiError(null);
     try {
-      const aiDetails = await generateBikeDetails(name);
-      setEditedProduct({
+      const aiDetails = await generateBikeDetails(formData.name);
+      // Fix: Removed reference to aiDetails.image as it's not present in the GeminiBikeResponse type
+      setFormData({
+        ...formData,
         ...aiDetails,
-        image: image as string,
+        // Tetap gunakan gambar yang sudah diupload user jika ada
+        image: formData.image || '',
       });
-      setShowEditor(true);
+      alert("✨ Berhasil! Data telah diisi otomatis oleh Gemini AI.");
     } catch (error: any) {
       console.error("AI Fetch Error:", error);
-      const msg = error.message || "Gagal mengambil data AI.";
-      setErrorMsg(msg);
-      
-      // Memberikan opsi manual jika AI gagal dengan info detail
-      const confirmManual = confirm(
-        `Gagal mengambil data via Gemini Pro.\n\nDetail Error: ${msg}\n\nApakah Anda ingin mengisi data secara manual?`
-      );
-      
-      if (confirmManual) {
-        setShowEditor(true);
-        setEditedProduct({
-          name: name || '',
-          image: image as string,
-          price: 'Rp ',
-          category: 'Matic',
-          description: '',
-          specs: { engine: '', power: '', torque: '', transmission: '', fuelCapacity: '' },
-          features: [],
-          colors: []
-        });
-      }
+      setAiError(error.message || "Gagal terhubung ke AI.");
+      alert("⚠️ AI tidak bisa menarik data. Silakan isi secara manual.");
     } finally {
       setLoading(false);
     }
   };
 
   const handlePublish = () => {
-    if (editedProduct.name) {
-      onAdd({
-        ...editedProduct as Product,
-        id: productToEdit?.id || Date.now().toString(),
-        image: image || editedProduct.image || '',
-      });
-      reset();
-      onClose();
+    if (!formData.name || !formData.image) {
+      alert("Nama unit dan Foto harus diisi!");
+      return;
     }
+    onAdd({
+      ...formData as Product,
+      id: productToEdit?.id || Date.now().toString(),
+    });
+    reset();
+    onClose();
   };
 
   const reset = () => {
-    setName('');
-    setImage(null);
-    setShowEditor(false);
-    setEditedProduct({});
-    setErrorMsg(null);
+    setFormData({
+      name: '',
+      price: '',
+      category: 'Matic',
+      description: '',
+      image: '',
+      specs: { engine: '', power: '', torque: '', transmission: '', fuelCapacity: '' },
+      features: [],
+      colors: []
+    });
+    setAiError(null);
     setLoading(false);
   };
 
@@ -103,79 +101,78 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
 
   return (
     <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
-      <div className="bg-white rounded-[2rem] w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-        <div className="bg-honda-red px-8 py-5 flex justify-between items-center text-white">
-          <h2 className="text-xl font-black italic uppercase tracking-tighter">
-            {productToEdit ? 'Update Unit' : 'Registrasi Unit Baru'}
-          </h2>
-          <button onClick={() => { reset(); onClose(); }} className="hover:rotate-90 transition-transform">✕</button>
+      <div className="bg-white rounded-[2.5rem] w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="bg-honda-red px-8 py-5 flex justify-between items-center text-white shrink-0">
+          <div>
+            <h2 className="text-xl font-black italic uppercase tracking-tighter">
+              {productToEdit ? 'Edit Unit' : 'Registrasi Unit Baru'}
+            </h2>
+            <p className="text-[9px] font-bold uppercase opacity-70 tracking-widest">Daya Motor Management System</p>
+          </div>
+          <button onClick={() => { reset(); onClose(); }} className="hover:rotate-90 transition-transform text-2xl">✕</button>
         </div>
         
-        <div className="p-8 overflow-y-auto space-y-6">
-          {!showEditor ? (
-            <div className="space-y-6">
-              {errorMsg && (
-                <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-[10px] font-bold text-red-600 uppercase tracking-widest animate-pulse">
-                  ⚠️ Error: {errorMsg}
-                </div>
-              )}
-
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nama Unit (Misal: Honda CUV e:)</label>
-                <input 
-                  type="text" 
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g., Honda Vario 160 ABS"
-                  className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-honda-red outline-none font-bold text-sm"
-                />
+        <div className="p-8 overflow-y-auto space-y-8 no-scrollbar">
+          {/* AI Helper Bar */}
+          <div className="p-4 bg-gray-900 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center animate-pulse">
+                <span className="text-white text-xs font-black italic">G</span>
               </div>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                Capek mengetik? <span className="text-white">Gunakan Gemini AI</span> untuk auto-fill spesifikasi.
+              </p>
+            </div>
+            <button 
+              onClick={handleFetchAI}
+              disabled={loading || !formData.name}
+              className="bg-white text-black px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all disabled:opacity-30 flex items-center gap-2"
+            >
+              {loading ? 'Sedang Berpikir...' : '✨ Auto-Fill dengan AI'}
+            </button>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-10">
+            {/* Left Column: Media & Info */}
+            <div className="md:col-span-5 space-y-6">
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Foto Produk Utama</label>
-                <div className="relative border-2 border-dashed border-gray-200 rounded-3xl h-48 flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all overflow-hidden">
-                  {image ? (
-                    <img src={image} className="w-full h-full object-cover" alt="Preview" />
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Foto Unit</label>
+                <div className="relative aspect-video border-2 border-dashed border-gray-200 rounded-3xl flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition-all overflow-hidden group">
+                  {formData.image ? (
+                    <>
+                      <img src={formData.image} className="w-full h-full object-cover" alt="Preview" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                        <span className="text-white font-bold text-xs uppercase">Ganti Foto</span>
+                      </div>
+                    </>
                   ) : (
-                    <div className="text-center">
-                      <p className="text-gray-400 text-xs font-bold uppercase mb-1">Klik/Drop Gambar Unit</p>
-                      <p className="text-[8px] text-gray-300 uppercase tracking-widest font-black">Maksimal 2MB disarankan</p>
+                    <div className="text-center p-4">
+                      <p className="text-gray-400 text-[10px] font-black uppercase">Upload Foto Unit</p>
+                      <p className="text-[8px] text-gray-300 uppercase mt-1">Sangat disarankan background putih</p>
                     </div>
                   )}
                   <input type="file" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
                 </div>
               </div>
 
-              <button 
-                onClick={handleFetchAI}
-                disabled={loading || !name || !image}
-                className="w-full bg-gray-900 text-white font-black py-5 rounded-2xl uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center gap-3 shadow-xl"
-              >
-                {loading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Gemini Pro Sedang Menganalisa...</span>
-                  </>
-                ) : (
-                  'Ambil Spek via Gemini Pro'
-                )}
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-8 animate-in fade-in duration-500">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <h3 className="text-xs font-black uppercase text-honda-red italic underline">Data Dasar</h3>
-                  <div className="space-y-3">
-                    <input 
-                      type="text" value={editedProduct.name || ''} 
-                      onChange={e => setEditedProduct({...editedProduct, name: e.target.value})}
-                      placeholder="Nama Unit" className="w-full p-3 border rounded-xl text-xs font-bold"
-                    />
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nama Unit</label>
+                  <input 
+                    type="text" 
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    placeholder="Contoh: Honda Vario 160 ABS"
+                    className="w-full px-5 py-4 bg-gray-50 border rounded-2xl focus:ring-2 focus:ring-honda-red outline-none font-bold text-sm"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Kategori</label>
                     <select 
-                      value={editedProduct.category || 'Matic'} 
-                      onChange={e => setEditedProduct({...editedProduct, category: e.target.value as any})}
-                      className="w-full p-3 border rounded-xl text-xs font-bold bg-white"
+                      value={formData.category}
+                      onChange={(e) => setFormData({...formData, category: e.target.value as any})}
+                      className="w-full px-4 py-4 bg-gray-50 border rounded-2xl font-bold text-xs outline-none"
                     >
                       <option value="Matic">Matic</option>
                       <option value="Sport">Sport</option>
@@ -183,73 +180,75 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd, produ
                       <option value="Big Bike">Big Bike</option>
                       <option value="EV">EV</option>
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Harga OTR</label>
                     <input 
-                      type="text" value={editedProduct.price || ''} 
-                      onChange={e => setEditedProduct({...editedProduct, price: e.target.value})}
-                      placeholder="Harga (Rp ...)" className="w-full p-3 border rounded-xl text-xs"
+                      type="text" 
+                      value={formData.price}
+                      onChange={(e) => setFormData({...formData, price: e.target.value})}
+                      placeholder="Rp 30.000.000"
+                      className="w-full px-4 py-4 bg-gray-50 border rounded-2xl font-bold text-xs outline-none"
                     />
-                    <div className="space-y-1">
-                      <label className="text-[8px] uppercase font-bold text-gray-400 ml-1">Deskripsi Unit</label>
-                      <textarea 
-                        value={editedProduct.description || ''} 
-                        onChange={e => setEditedProduct({...editedProduct, description: e.target.value})}
-                        placeholder="Deskripsi Singkat" className="w-full p-3 border rounded-xl text-[10px] leading-relaxed h-40 resize-none font-medium"
-                      />
-                    </div>
                   </div>
                 </div>
-                
-                <div className="space-y-4">
-                  <h3 className="text-xs font-black uppercase text-honda-red italic underline">Spesifikasi Teknik</h3>
-                  <div className="space-y-2">
-                    {['engine', 'power', 'torque', 'transmission', 'fuelCapacity'].map((key) => (
-                      <div key={key}>
-                        <label className="text-[8px] uppercase font-bold text-gray-400 ml-1">{key}</label>
-                        <input 
-                          type="text" 
-                          value={(editedProduct.specs as any)?.[key] || ''} 
-                          onChange={e => setEditedProduct({
-                            ...editedProduct, 
-                            specs: { ...editedProduct.specs, [key]: e.target.value } as ProductSpecs
-                          })}
-                          className="w-full p-2 border rounded-lg text-[10px]"
-                        />
-                      </div>
-                    ))}
+              </div>
+            </div>
+
+            {/* Right Column: Specs */}
+            <div className="md:col-span-7 space-y-6">
+              <h3 className="text-xs font-black uppercase text-honda-red italic underline decoration-2 underline-offset-4">Spesifikasi & Fitur</h3>
+              
+              <div className="grid grid-cols-2 gap-4">
+                {['engine', 'power', 'torque', 'transmission', 'fuelCapacity'].map((key) => (
+                  <div key={key}>
+                    <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">{key}</label>
+                    <input 
+                      type="text" 
+                      value={(formData.specs as any)?.[key] || ''} 
+                      onChange={e => setFormData({
+                        ...formData, 
+                        specs: { ...formData.specs, [key]: e.target.value } as ProductSpecs
+                      })}
+                      className="w-full p-3 bg-gray-50 border rounded-xl text-[10px] font-medium"
+                      placeholder={`Detail ${key}...`}
+                    />
                   </div>
-                </div>
+                ))}
               </div>
 
               <div>
-                <h3 className="text-xs font-black uppercase text-honda-red italic underline mb-3">Ketersediaan Warna (Gunakan koma)</h3>
+                <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Pilihan Warna (Pisahkan koma)</label>
                 <input 
                   type="text" 
-                  value={editedProduct.colors?.join(', ') || ''} 
-                  onChange={e => setEditedProduct({...editedProduct, colors: e.target.value.split(',').map(s => s.trim())})}
-                  placeholder="Contoh: Matte Black, Candy Red, Pearl White" 
-                  className="w-full p-4 border rounded-2xl text-xs font-medium bg-gray-50 focus:bg-white transition-all"
+                  value={formData.colors?.join(', ') || ''} 
+                  onChange={e => setFormData({...formData, colors: e.target.value.split(',').map(s => s.trim())})}
+                  placeholder="Matte Black, Candy Red..." 
+                  className="w-full p-3 bg-gray-50 border rounded-xl text-[10px]"
                 />
               </div>
 
-              <div className="pt-4 border-t flex gap-4">
-                <button 
-                  onClick={() => {
-                    if (productToEdit) onClose();
-                    else setShowEditor(false);
-                  }}
-                  className="flex-1 py-4 text-xs font-bold uppercase text-gray-400"
-                >
-                  Kembali
-                </button>
-                <button 
-                  onClick={handlePublish}
-                  className="flex-[2] bg-honda-red text-white font-black py-4 rounded-2xl uppercase tracking-widest shadow-xl shadow-red-200"
-                >
-                  {productToEdit ? 'Simpan Perubahan' : 'Publish ke Katalog'}
-                </button>
+              <div>
+                <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Deskripsi Singkat</label>
+                <textarea 
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  className="w-full p-4 bg-gray-50 border rounded-2xl text-[10px] leading-relaxed h-32 resize-none"
+                  placeholder="Tulis keunggulan unit di sini..."
+                />
               </div>
             </div>
-          )}
+          </div>
+        </div>
+
+        <div className="p-8 bg-gray-50 border-t flex gap-4 shrink-0">
+          <button onClick={() => { reset(); onClose(); }} className="flex-1 py-4 text-xs font-bold uppercase text-gray-400">Batal</button>
+          <button 
+            onClick={handlePublish}
+            className="flex-[2] bg-honda-red text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-red-100 hover:bg-red-700 transition-all active:scale-95"
+          >
+            {productToEdit ? 'Simpan Perubahan' : 'Publish Ke Katalog'}
+          </button>
         </div>
       </div>
     </div>
