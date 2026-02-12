@@ -1,11 +1,10 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { GeminiBikeResponse } from "../types.ts";
+import { GeminiBikeResponse, MotorcycleCategory } from "../types.ts";
 
-export const generateBikeDetails = async (bikeName: string): Promise<GeminiBikeResponse> => {
-  // Hanya jalankan jika API_KEY tersedia
+export const generateBikeDetails = async (bikeName: string, category: MotorcycleCategory): Promise<GeminiBikeResponse> => {
   if (!process.env.API_KEY) {
-    throw new Error("API_KEY tidak dikonfigurasi di environment.");
+    throw new Error("API_KEY tidak dikonfigurasi.");
   }
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -13,9 +12,15 @@ export const generateBikeDetails = async (bikeName: string): Promise<GeminiBikeR
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Berikan spesifikasi resmi Honda "${bikeName}" dalam format JSON Bahasa Indonesia. Fokus pada data teknis yang akurat untuk pasar Indonesia.`,
+      contents: `Berikan data spesifikasi teknis resmi motor Honda "${bikeName}" dengan kategori "${category}" khusus untuk pasar Indonesia (AHM).`,
       config: {
-        systemInstruction: "Anda adalah asisten dealer Honda. Berikan data spesifikasi motor dalam JSON. Jika nama motor tidak dikenal, berikan data default kosong tapi tetap dalam format JSON yang benar.",
+        systemInstruction: `Anda adalah database teknis motor Honda Indonesia. 
+        Tugas Anda: Memberikan spesifikasi akurat dalam format JSON. 
+        PENTING: 
+        1. Gunakan Nama resmi yang beredar di Indonesia. 
+        2. Harga harus dalam format string (Contoh: "Rp 20.000.000"). 
+        3. Jika motor adalah model terbaru (seperti New Beat 2024 atau Stylo 160), berikan data terbaru.
+        4. Jika data tidak ditemukan, berikan perkiraan terdekat berdasarkan kategori ${category}.`,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
