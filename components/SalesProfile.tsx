@@ -18,10 +18,6 @@ const SalesProfile: React.FC<SalesProfileProps> = ({ salesInfo }) => {
               alt={salesInfo.name} 
               className="relative rounded-3xl shadow-2xl w-full aspect-[4/5] object-cover"
             />
-            <div className="absolute -bottom-6 -right-6 bg-honda-red p-8 text-white rounded-2xl shadow-xl">
-              <p className="text-4xl font-black italic mb-1">{salesInfo.experience}</p>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">Experience in Honda</p>
-            </div>
           </div>
 
           <div className="lg:col-span-7">

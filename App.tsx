@@ -99,12 +99,32 @@ const App: React.FC = () => {
     }
   }, [isPersonalized]);
 
+  const createLocalBackup = useCallback(() => {
+    const currentData = {
+      salesInfo,
+      logo,
+      dealerName,
+      dealerAddress,
+      heroBackground,
+      products,
+      promos,
+      storyTitle,
+      storyCity,
+      storyText1,
+      storyText2,
+      visi,
+      misi,
+      salesAboutMessage,
+      timestamp: new Date().toISOString()
+    };
+    localStorage.setItem('honda_emergency_backup', JSON.stringify(currentData));
+  }, [salesInfo, logo, dealerName, dealerAddress, heroBackground, products, promos, storyTitle, storyCity, storyText1, storyText2, visi, misi, salesAboutMessage]);
+
   useEffect(() => {
     const initialize = async () => {
       const urlParams = new URLSearchParams(window.location.search);
       setIsStaff(urlParams.get('staff') === 'true');
 
-      // FITUR AUTO-SETUP CLOUD DARI URL
       const fbParam = urlParams.get('fb');
       if (fbParam) {
         const decodedFb = safeAtob(fbParam);
@@ -155,10 +175,8 @@ const App: React.FC = () => {
       if (fbConfigStr) {
         try {
           initFirebase(JSON.parse(fbConfigStr));
-          setCloudStatus('syncing');
-          const cloudData = await getDealerDataOnce();
-          if (cloudData) applyData(cloudData, true);
           setCloudStatus('connected');
+          // Sinkronisasi real-time tetap aktif untuk kolaborasi tim
           firebaseUnsubscribe.current = subscribeToDealerData((updatedData) => applyData(updatedData, true));
         } catch (e) { 
           setCloudStatus('error');
@@ -170,6 +188,41 @@ const App: React.FC = () => {
     initialize();
     return () => firebaseUnsubscribe.current?.();
   }, [applyData]);
+
+  const handlePushToCloud = async () => {
+    const currentData = {
+      salesInfo,
+      logo,
+      dealerName,
+      dealerAddress,
+      heroBackground,
+      products,
+      promos,
+      storyTitle,
+      storyCity,
+      storyText1,
+      storyText2,
+      visi,
+      misi,
+      salesAboutMessage
+    };
+    await saveDealerDataToCloud(currentData);
+  };
+
+  const handlePullFromCloud = async () => {
+    createLocalBackup(); // Buat cadangan lokal SEBELUM menarik data cloud
+    const cloudData = await getDealerDataOnce();
+    if (cloudData) applyData(cloudData, true);
+  };
+
+  const handleRestoreBackup = async () => {
+    const backupStr = localStorage.getItem('honda_emergency_backup');
+    if (backupStr) {
+      const backupData = JSON.parse(backupStr);
+      applyData(backupData, true);
+      localStorage.removeItem('honda_emergency_backup'); // Hapus setelah berhasil restore
+    }
+  };
 
   const handleSaveAdminSettings = async (newSales: SalesPerson, newLogo: string | null, newName: string, newAddress: string, newHeroBg: string, storyData?: any) => {
     const newData = {
@@ -268,7 +321,11 @@ const App: React.FC = () => {
         onSave={handleSaveAdminSettings} 
         onReset={() => { localStorage.clear(); window.location.reload(); }} 
         onSyncRemote={async () => {}} 
-        remoteUrl={null} 
+        remoteUrl={null}
+        onPushToCloud={handlePushToCloud}
+        onPullFromCloud={handlePullFromCloud}
+        onRestoreBackup={handleRestoreBackup}
+        cloudStatus={cloudStatus}
       />
       <SalesProfileModal isOpen={isSalesOpen} onClose={() => setIsSalesOpen(false)} salesInfo={salesInfo} remoteUrl={null} onSave={(s) => handleSaveAdminSettings(s, logo, dealerName, dealerAddress, heroBackground)} />
       <AdminPromoModal isOpen={isPromoOpen} onClose={() => setIsPromoOpen(false)} promos={promos} onSave={(p) => handleSaveAdminSettings(salesInfo, logo, dealerName, dealerAddress, heroBackground, {promos: p})} />

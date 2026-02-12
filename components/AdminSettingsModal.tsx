@@ -23,6 +23,11 @@ interface AdminSettingsModalProps {
   onSyncRemote: (url: string) => Promise<any>;
   onSave: (newSalesInfo: SalesPerson, newLogo: string | null, newName: string, newAddress: string, newHeroBg: string, storyData: any) => void;
   onReset: () => void;
+  // New Sync Controls
+  onPushToCloud?: () => Promise<void>;
+  onPullFromCloud?: () => Promise<void>;
+  onRestoreBackup?: () => Promise<void>;
+  cloudStatus: 'connected' | 'offline' | 'syncing' | 'error';
 }
 
 const safeBtoa = (str: string) => {
@@ -34,7 +39,7 @@ const safeBtoa = (str: string) => {
 };
 
 const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({ 
-  isOpen, onClose, salesInfo, products, promos, logo, heroBackground, dealerName, dealerAddress, storyTitle, storyCity, storyText1, storyText2, visi, misi, salesAboutMessage, onSave, onReset 
+  isOpen, onClose, salesInfo, products, promos, logo, heroBackground, dealerName, dealerAddress, storyTitle, storyCity, storyText1, storyText2, visi, misi, salesAboutMessage, onSave, onReset, onPushToCloud, onPullFromCloud, onRestoreBackup, cloudStatus 
 }) => {
   const [activeTab, setActiveTab] = useState<'admin' | 'firebase'>('admin');
   const [tempSales, setTempSales] = useState<SalesPerson>(salesInfo);
@@ -53,6 +58,8 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
 
   const [fbConfig, setFbConfig] = useState<string>(localStorage.getItem('honda_firebase_config') || '');
   const [copiedLink, setCopiedLink] = useState(false);
+  const [isSyncingAction, setIsSyncingAction] = useState(false);
+  const [hasBackup, setHasBackup] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -68,6 +75,7 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
       setTempVisi(visi);
       setTempMisi(misi);
       setTempSalesAboutMsg(salesAboutMessage);
+      setHasBackup(!!localStorage.getItem('honda_emergency_backup'));
     }
   }, [isOpen, salesInfo, logo, heroBackground, dealerName, dealerAddress, storyTitle, storyCity, storyText1, storyText2, visi, misi, salesAboutMessage]);
 
@@ -107,6 +115,37 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 3000);
     });
+  };
+
+  const handlePush = async () => {
+    if (!onPushToCloud) return;
+    if (confirm("PERINGATAN: Ini akan mengganti semua data di Cloud dengan data dari laptop ini. Lanjutkan?")) {
+      setIsSyncingAction(true);
+      await onPushToCloud();
+      setIsSyncingAction(false);
+      alert("Berhasil! Data laptop kini tersimpan aman di Cloud.");
+    }
+  };
+
+  const handlePull = async () => {
+    if (!onPullFromCloud) return;
+    if (confirm("PERINGATAN: Ini akan menghapus data di laptop ini dan menggantinya dengan data dari Cloud. Lanjutkan?")) {
+      setIsSyncingAction(true);
+      await onPullFromCloud();
+      setIsSyncingAction(false);
+      setHasBackup(true);
+      alert("Berhasil! Data laptop telah diperbarui dari Cloud.");
+    }
+  };
+
+  const handleRestore = async () => {
+    if (!onRestoreBackup) return;
+    if (confirm("Kembalikan data lokal ke kondisi tepat sebelum sinkronisasi terakhir?")) {
+      await onRestoreBackup();
+      setHasBackup(false);
+      onClose();
+      alert("Data berhasil dipulihkan!");
+    }
   };
 
   if (!isOpen) return null;
@@ -229,15 +268,56 @@ const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
           )}
 
           {activeTab === 'firebase' && (
-            <div className="space-y-6">
-               <div className="bg-orange-50 p-6 rounded-3xl border border-orange-100">
-                  <h4 className="text-[10px] font-black uppercase italic text-orange-600 mb-2">Cloud Master Sync</h4>
+            <div className="space-y-8">
+               <div className="bg-orange-50 p-6 rounded-3xl border border-orange-100 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-[10px] font-black uppercase italic text-orange-600">Cloud Master Sync</h4>
+                    <span className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded-full ${cloudStatus === 'connected' ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-500'}`}>
+                      Status: {cloudStatus}
+                    </span>
+                  </div>
+                  
+                  {cloudStatus === 'connected' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <button 
+                        onClick={handlePush}
+                        disabled={isSyncingAction}
+                        className="bg-orange-500 text-white p-4 rounded-xl flex flex-col items-center gap-2 hover:bg-orange-600 transition-all disabled:opacity-50"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                        <span className="text-[8px] font-black uppercase tracking-tighter">Push to Cloud</span>
+                      </button>
+                      <button 
+                        onClick={handlePull}
+                        disabled={isSyncingAction}
+                        className="bg-white border border-orange-200 text-orange-600 p-4 rounded-xl flex flex-col items-center gap-2 hover:bg-orange-50 transition-all disabled:opacity-50"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" /></svg>
+                        <span className="text-[8px] font-black uppercase tracking-tighter">Pull from Cloud</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {hasBackup && (
+                    <button 
+                      onClick={handleRestore}
+                      className="w-full bg-gray-800 text-white py-3 rounded-xl font-black uppercase text-[9px] tracking-[0.2em] shadow-lg flex items-center justify-center gap-2 hover:bg-black transition-all"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+                      Undo: Kembalikan Data Sebelum Sinkron
+                    </button>
+                  )}
+
                   <button onClick={handleCopySetupLink} className={`w-full py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-md ${copiedLink ? 'bg-green-500 text-white' : 'bg-white text-orange-600 border border-orange-200 hover:bg-orange-100'}`}>
                     {copiedLink ? '✓ Link Berhasil Disalin' : '🔗 Salin Link Setup Otomatis'}
                   </button>
                </div>
 
-               <textarea value={fbConfig} onChange={e => setFbConfig(e.target.value)} className="w-full p-4 border rounded-2xl text-[10px] font-mono h-48 bg-gray-50" placeholder='Tempel kode JSON Firebase di sini...' />
+               <div className="space-y-2">
+                 <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Firebase JSON Config</label>
+                 <textarea value={fbConfig} onChange={e => setFbConfig(e.target.value)} className="w-full p-4 border rounded-2xl text-[10px] font-mono h-40 bg-gray-50 focus:bg-white transition-all" placeholder='Tempel kode JSON Firebase di sini...' />
+               </div>
+
                <button onClick={() => { localStorage.setItem('honda_firebase_config', fbConfig); window.location.reload(); }} className="w-full bg-orange-500 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-orange-100 hover:bg-orange-600 transition-all">Aktifkan Cloud Sekarang</button>
             </div>
           )}
