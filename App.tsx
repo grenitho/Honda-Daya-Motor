@@ -14,23 +14,17 @@ import AdminPromoModal from './components/AdminPromoModal.tsx';
 import AdminProductModal from './components/AdminProductModal.tsx';
 import { Product, SalesPerson, Promo } from './types.ts';
 import { SALES_INFO as DEFAULT_SALES, PROMOS as DEFAULT_PROMOS, INITIAL_PRODUCTS, DEFAULT_LOGO_URL, DEFAULT_HERO_BG_URL, DEFAULT_STORY } from './constants.ts';
-import { initFirebase, subscribeToDealerData, saveDealerDataToCloud, getDealerDataOnce } from './services/firebaseService.ts';
+import { initFirebase, subscribeToGlobalData, subscribeToSalesProfile, saveGlobalData, saveSalesProfile, getGlobalDealerData, getSalesProfile } from './services/firebaseService.ts';
 
 type ViewState = 'home' | 'about' | 'contact';
 
-// Decoder Base64 Universal yang lebih aman untuk mobile
 const robustAtob = (str: string) => {
   try {
-    return decodeURIComponent(atob(str).split('').map((c) => {
-      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
+    const padding = str.length % 4;
+    if (padding > 0) str += "=".repeat(4 - padding);
+    return decodeURIComponent(atob(str).split('').map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
   } catch (e) {
-    try {
-      return decodeURIComponent(escape(atob(str)));
-    } catch (e2) {
-      console.error("Critical Decoding Error:", e2);
-      return null;
-    }
+    try { return decodeURIComponent(escape(atob(str))); } catch (e2) { return null; }
   }
 };
 
@@ -64,38 +58,16 @@ const App: React.FC = () => {
   const [loadingMsg, setLoadingMsg] = useState('Menginisialisasi...');
   
   const isPersonalizedRef = useRef(false);
-  const urlSalesDataRef = useRef<any>(null);
-  const isEditingRef = useRef(false); 
+  const activeSalesIdRef = useRef<string | null>(null);
   const [cloudStatus, setCloudStatus] = useState<'connected' | 'offline' | 'syncing' | 'error'>('offline');
   
-  const firebaseUnsubscribe = useRef<any>(null);
+  const unsubs = useRef<any[]>([]);
 
-  // Fungsi sakti untuk menggabungkan data Default + Cloud + Link Spesifik
-  const applyData = useCallback((data: any, saveLocally = true) => {
-    if (!data || isEditingRef.current) return;
-    
-    // 1. Update Katalog & Promo
-    if (data.products && Array.isArray(data.products) && data.products.length > 0) setProducts(data.products);
-    if (data.promos && Array.isArray(data.promos) && data.promos.length > 0) setPromos(data.promos);
-    
-    // 2. Update Sales dengan Logika Merging yang Benar
-    if (data.salesInfo) {
-      setSalesInfo((prev) => {
-        const merged = { 
-          ...prev, 
-          ...data.salesInfo, // Ambil foto, bio, dll dari cloud
-        };
-        // Jika ini link personal, pastikan Nama & WA dari link yang menang
-        if (isPersonalizedRef.current && urlSalesDataRef.current) {
-          return { ...merged, ...urlSalesDataRef.current };
-        }
-        return merged;
-      });
-    }
-
-    // 3. Update Branding & Story
+  const applyGlobalData = useCallback((data: any) => {
+    if (!data) return;
+    if (data.products) setProducts(data.products);
+    if (data.promos) setPromos(data.promos);
     if (data.logo !== undefined) setLogo(data.logo);
-    if (data.heroBackground) setHeroBackground(data.heroBackground);
     if (data.dealerName) setDealerName(data.dealerName);
     if (data.dealerAddress) setDealerAddress(data.dealerAddress);
     if (data.storyTitle) setStoryTitle(data.storyTitle);
@@ -104,158 +76,124 @@ const App: React.FC = () => {
     if (data.storyText2) setStoryText2(data.storyText2);
     if (data.visi) setVisi(data.visi);
     if (data.misi) setMisi(data.misi);
-    if (data.salesAboutMessage) setSalesAboutMessage(data.salesAboutMessage);
+    if (data.heroBackground) setHeroBackground(data.heroBackground);
+    
+    // Simpan ke local cache
+    localStorage.setItem('honda_catalog', JSON.stringify(data.products || []));
+    localStorage.setItem('honda_dealer_name', data.dealerName || '');
+    localStorage.setItem('honda_setup_completed', 'true');
+  }, []);
 
-    if (saveLocally) {
-      localStorage.setItem('honda_catalog', JSON.stringify(data.products || products));
-      localStorage.setItem('honda_promos', JSON.stringify(data.promos || promos));
-      if (!isPersonalizedRef.current && data.salesInfo) {
-        localStorage.setItem('honda_sales_info', JSON.stringify(data.salesInfo));
-      }
-      if (data.logo) localStorage.setItem('honda_dealer_logo', data.logo);
-      if (data.heroBackground) localStorage.setItem('honda_hero_bg', data.heroBackground);
-      if (data.dealerName) localStorage.setItem('honda_dealer_name', data.dealerName);
-      if (data.dealerAddress) localStorage.setItem('honda_dealer_address', data.dealerAddress);
-      localStorage.setItem('honda_setup_completed', 'true');
+  const applySalesData = useCallback((data: any) => {
+    if (!data) return;
+    setSalesInfo(prev => ({ ...prev, ...data }));
+    if (!isPersonalizedRef.current) {
+      localStorage.setItem('honda_sales_info', JSON.stringify(data));
     }
-  }, [products, promos]);
+  }, []);
 
   useEffect(() => {
     const initialize = async () => {
-      setLoadingMsg('Membaca Konfigurasi...');
       const urlParams = new URLSearchParams(window.location.search);
-      const staffMode = urlParams.get('staff') === 'true';
-      setIsStaff(staffMode);
+      setIsStaff(urlParams.get('staff') === 'true');
 
       let fbConfigToUse = localStorage.getItem('honda_firebase_config');
+      let targetSalesId = null;
 
-      // STEP 1: Parse Link Personal (?p=...)
+      // 1. Parse Link Personal (?p=...)
       const pParam = urlParams.get('p');
       if (pParam) {
         const decoded = robustAtob(pParam);
         if (decoded) {
           try {
             const parsed = JSON.parse(decoded);
-            if (parsed.salesInfo) {
-              urlSalesDataRef.current = parsed.salesInfo;
+            if (parsed.salesId) {
+              targetSalesId = parsed.salesId;
+              activeSalesIdRef.current = parsed.salesId;
               isPersonalizedRef.current = true;
-              // Set salesInfo sementara (tanpa foto) agar Nama/WA muncul cepat
-              setSalesInfo(prev => ({ ...prev, ...parsed.salesInfo }));
             }
             if (parsed.fbConfig) {
               fbConfigToUse = typeof parsed.fbConfig === 'string' ? parsed.fbConfig : JSON.stringify(parsed.fbConfig);
               localStorage.setItem('honda_firebase_config', fbConfigToUse);
             }
-          } catch(e) { console.error("URL Parameter Parse Error"); }
+          } catch(e) {}
         }
       }
 
-      // STEP 2: Parse Setup Link (?fb=...)
-      const fbParam = urlParams.get('fb');
-      if (fbParam) {
-        const decodedFb = robustAtob(fbParam);
-        if (decodedFb) {
-          fbConfigToUse = decodedFb;
-          localStorage.setItem('honda_firebase_config', decodedFb);
-        }
-      }
-
-      // STEP 3: Load Data Lokal (Sambil Nunggu Cloud)
-      const isSetupCompleted = localStorage.getItem('honda_setup_completed') === 'true';
-      if (isSetupCompleted) {
-        setProducts(JSON.parse(localStorage.getItem('honda_catalog') || '[]'));
-        setPromos(JSON.parse(localStorage.getItem('honda_promos') || '[]'));
-        setLogo(localStorage.getItem('honda_dealer_logo'));
-        setDealerName(localStorage.getItem('honda_dealer_name') || 'HONDA DEALER');
-        if (!isPersonalizedRef.current) {
-          setSalesInfo(JSON.parse(localStorage.getItem('honda_sales_info') || JSON.stringify(DEFAULT_SALES)));
-        }
-      }
-
-      // STEP 4: SINKRONISASI CLOUD (WAJIB SEBELUM RENDER)
+      // 2. Hubungkan ke Cloud
       if (fbConfigToUse) {
-        setLoadingMsg('Menyambungkan Database...');
+        setLoadingMsg('Sinkronisasi Cloud...');
         try {
           const config = JSON.parse(fbConfigToUse);
           initFirebase(config);
           setCloudStatus('connected');
           
-          setLoadingMsg('Sinkronisasi Data Dealer...');
-          const cloudData = await getDealerDataOnce();
-          if (cloudData) {
-            applyData(cloudData, true);
-          }
-          
-          // Tetap subscribe untuk update real-time
-          firebaseUnsubscribe.current = subscribeToDealerData((updatedData) => {
-            applyData(updatedData, true);
-          });
-        } catch (e) { 
+          // Ambil Data Global (Catalog, Logo, etc)
+          const globalData = await getGlobalDealerData();
+          if (globalData) applyGlobalData(globalData);
+
+          // Ambil Data Sales (Specific atau Master)
+          const salesIdToFetch = targetSalesId || 'master_profile';
+          const profileData = await getSalesProfile(salesIdToFetch);
+          if (profileData) applySalesData(profileData);
+
+          // Subscribe Real-time
+          unsubs.current.push(subscribeToGlobalData(applyGlobalData));
+          unsubs.current.push(subscribeToSalesProfile(salesIdToFetch, applySalesData));
+        } catch (e) {
           setCloudStatus('error');
-          console.error("Firebase Sync Error:", e);
         }
-      } else if (!isSetupCompleted) {
-        // Jika tidak ada cloud dan belum setup, gunakan data awal
+      } else {
+        // Fallback ke Local / Default
         setProducts(INITIAL_PRODUCTS);
         setPromos(DEFAULT_PROMOS);
       }
       
-      setLoadingMsg('Siap!');
-      setTimeout(() => setIsInitialized(true), 800);
+      setLoadingMsg('Dealer Siap!');
+      setTimeout(() => setIsInitialized(true), 1200);
     };
 
     initialize();
-    return () => firebaseUnsubscribe.current?.();
-  }, [applyData]);
+    return () => unsubs.current.forEach(u => u?.());
+  }, [applyGlobalData, applySalesData]);
 
-  const handleSaveAdminSettings = async (newSales: SalesPerson, newLogo: string | null, newName: string, newAddress: string, newHeroBg: string, storyData?: any) => {
-    isEditingRef.current = true;
-    const combinedData = {
-      salesInfo: newSales,
-      logo: newLogo,
-      dealerName: newName,
-      dealerAddress: newAddress,
-      heroBackground: newHeroBg,
-      products: storyData?.products || products,
-      promos: storyData?.promos || promos,
-      ...storyData
-    };
-
+  const handleSaveAll = async (newSales: SalesPerson, newLogo: string | null, newName: string, newAddress: string, newHeroBg: string, storyData?: any) => {
+    // 1. Update UI
     setSalesInfo(newSales);
     setLogo(newLogo);
     setDealerName(newName);
     setDealerAddress(newAddress);
     setHeroBackground(newHeroBg);
-    if (storyData?.products) setProducts(storyData.products);
-    if (storyData?.promos) setPromos(storyData.promos);
 
-    applyData(combinedData, true);
+    // 2. Simpan ke Cloud (Jika Terhubung)
     if (cloudStatus === 'connected') {
-      await saveDealerDataToCloud(combinedData);
+      // Simpan Global Dealer Info
+      await saveGlobalData({
+        logo: newLogo,
+        dealerName: newName,
+        dealerAddress: newAddress,
+        heroBackground: newHeroBg,
+        products: storyData?.products || products,
+        promos: storyData?.promos || promos,
+        ...storyData
+      });
+
+      // Simpan Profil Sales berdasarkan nomor WhatsApp (sebagai ID)
+      const salesId = newSales.whatsapp || 'master_profile';
+      await saveSalesProfile(salesId, newSales);
+      
+      // Juga update master_profile jika ini admin utama
+      if (!isPersonalizedRef.current) {
+        await saveSalesProfile('master_profile', newSales);
+      }
     }
-    isEditingRef.current = false;
   };
 
   if (!isInitialized) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-white">
-        <div className="relative">
-          <div className="text-7xl font-black italic text-honda-red animate-pulse">H</div>
-          <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-honda-red rounded-full animate-ping"></div>
-        </div>
-        <div className="mt-8 flex flex-col items-center gap-2">
-           <div className="w-48 h-1 bg-gray-100 rounded-full overflow-hidden">
-             <div className="w-full h-full bg-honda-red origin-left animate-[loading_2s_infinite_ease-in-out]"></div>
-           </div>
-           <p className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-300 animate-pulse">{loadingMsg}</p>
-        </div>
-        <style dangerouslySetInnerHTML={{ __html: `
-          @keyframes loading {
-            0% { transform: scaleX(0); }
-            50% { transform: scaleX(1); }
-            100% { transform: scaleX(0); transform-origin: right; }
-          }
-        `}} />
+        <div className="text-7xl font-black italic text-honda-red animate-pulse">H</div>
+        <p className="mt-8 text-[10px] font-black uppercase tracking-[0.4em] text-gray-300">{loadingMsg}</p>
       </div>
     );
   }
@@ -277,20 +215,10 @@ const App: React.FC = () => {
       <MapSection dealerName={dealerName} address={dealerAddress} />
       <Footer dealerName={dealerName} salesInfo={salesInfo} logo={logo} />
       <FloatingContact salesInfo={salesInfo} />
-      
-      {isStaff && (
-        <div className={`fixed bottom-6 left-6 z-[100] px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-widest border shadow-xl flex items-center gap-2 ${
-          cloudStatus === 'connected' ? 'bg-green-500 text-white border-green-400' : 'bg-gray-800 text-gray-400 border-gray-700'
-        }`}>
-          <div className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'connected' ? 'bg-white animate-pulse' : 'bg-current'}`}></div>
-          Cloud {cloudStatus}
-        </div>
-      )}
-
-      <AdminSettingsModal isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} salesInfo={salesInfo} products={products} promos={promos} logo={logo} heroBackground={heroBackground} dealerName={dealerName} dealerAddress={dealerAddress} storyTitle={storyTitle} storyCity={storyCity} storyText1={storyText1} storyText2={storyText2} visi={visi} misi={misi} salesAboutMessage={salesAboutMessage} onSave={handleSaveAdminSettings} onReset={() => { if(confirm("Hapus semua data?")) { localStorage.clear(); window.location.reload(); } }} onSyncRemote={async () => {}} remoteUrl={null} cloudStatus={cloudStatus} onPushToCloud={async () => { await saveDealerDataToCloud({ salesInfo, logo, dealerName, dealerAddress, heroBackground, products, promos, storyTitle, storyCity, storyText1, storyText2, visi, misi, salesAboutMessage }); }} onPullFromCloud={async () => { const d = await getDealerDataOnce(); if(d) applyData(d, true); }} />
-      <SalesProfileModal isOpen={isSalesOpen} onClose={() => setIsSalesOpen(false)} salesInfo={salesInfo} remoteUrl={null} onSave={(s) => handleSaveAdminSettings(s, logo, dealerName, dealerAddress, heroBackground)} />
-      <AdminPromoModal isOpen={isPromoOpen} onClose={() => setIsPromoOpen(false)} promos={promos} onSave={(p) => handleSaveAdminSettings(salesInfo, logo, dealerName, dealerAddress, heroBackground, {promos: p})} />
-      <AdminProductModal isOpen={isCatalogOpen} onClose={() => setIsCatalogOpen(false)} products={products} onSave={(p) => handleSaveAdminSettings(salesInfo, logo, dealerName, dealerAddress, heroBackground, {products: p})} />
+      <AdminSettingsModal isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} salesInfo={salesInfo} products={products} promos={promos} logo={logo} heroBackground={heroBackground} dealerName={dealerName} dealerAddress={dealerAddress} storyTitle={storyTitle} storyCity={storyCity} storyText1={storyText1} storyText2={storyText2} visi={visi} misi={misi} salesAboutMessage={salesAboutMessage} onSave={handleSaveAll} onReset={() => { localStorage.clear(); window.location.reload(); }} cloudStatus={cloudStatus} onPushToCloud={async () => { await handleSaveAll(salesInfo, logo, dealerName, dealerAddress, heroBackground, { products, promos, storyTitle, storyCity, storyText1, storyText2, visi, misi, salesAboutMessage }); }} onPullFromCloud={async () => { const d = await getGlobalDealerData(); if(d) applyGlobalData(d); const s = await getSalesProfile(activeSalesIdRef.current || 'master_profile'); if(s) applySalesData(s); }} />
+      <SalesProfileModal isOpen={isSalesOpen} onClose={() => setIsSalesOpen(false)} salesInfo={salesInfo} remoteUrl={null} onSave={(s) => handleSaveAll(s, logo, dealerName, dealerAddress, heroBackground)} />
+      <AdminPromoModal isOpen={isPromoOpen} onClose={() => setIsPromoOpen(false)} promos={promos} onSave={(p) => handleSaveAll(salesInfo, logo, dealerName, dealerAddress, heroBackground, {promos: p})} />
+      <AdminProductModal isOpen={isCatalogOpen} onClose={() => setIsCatalogOpen(false)} products={products} onSave={(p) => handleSaveAll(salesInfo, logo, dealerName, dealerAddress, heroBackground, {products: p})} />
     </div>
   );
 };
