@@ -18,7 +18,7 @@ import { initFirebase, subscribeToDealerData, saveDealerDataToCloud, getDealerDa
 
 type ViewState = 'home' | 'about' | 'contact';
 
-// Decoder Base64 yang sangat kompatibel (Universal)
+// Decoder Base64 Universal yang lebih aman untuk mobile
 const robustAtob = (str: string) => {
   try {
     return decodeURIComponent(atob(str).split('').map((c) => {
@@ -26,10 +26,9 @@ const robustAtob = (str: string) => {
     }).join(''));
   } catch (e) {
     try {
-      // Fallback untuk browser tertentu
       return decodeURIComponent(escape(atob(str)));
     } catch (e2) {
-      console.error("Decoding error:", e2);
+      console.error("Critical Decoding Error:", e2);
       return null;
     }
   }
@@ -44,8 +43,8 @@ const App: React.FC = () => {
   
   const [logo, setLogo] = useState<string | null>(DEFAULT_LOGO_URL);
   const [heroBackground, setHeroBackground] = useState<string>(DEFAULT_HERO_BG_URL);
-  const [dealerName, setDealerName] = useState<string>('HONDA DAYA MOTOR SUNGAILIAT');
-  const [dealerAddress, setDealerAddress] = useState<string>('Jl. Batin Tikal No.423, Karya Makmur, Kec. Pemali, Kabupaten Bangka, Kepulauan Bangka Belitung 33215');
+  const [dealerName, setDealerName] = useState<string>('HONDA DAYA MOTOR');
+  const [dealerAddress, setDealerAddress] = useState<string>('');
   
   const [storyTitle, setStoryTitle] = useState<string>(DEFAULT_STORY.title);
   const [storyCity, setStoryCity] = useState<string>(DEFAULT_STORY.city);
@@ -53,7 +52,7 @@ const App: React.FC = () => {
   const [storyText2, setStoryText2] = useState<string>(DEFAULT_STORY.text2);
   const [visi, setVisi] = useState<string>(DEFAULT_STORY.visi);
   const [misi, setMisi] = useState<string>(DEFAULT_STORY.misi);
-  const [salesAboutMessage, setSalesAboutMessage] = useState<string>("Sebagai konsultan penjualan Anda, misi saya adalah memberikan kemudahan dalam setiap langkah kepemilikan motor Honda Anda...");
+  const [salesAboutMessage, setSalesAboutMessage] = useState<string>("");
 
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isSalesOpen, setIsSalesOpen] = useState(false);
@@ -62,7 +61,7 @@ const App: React.FC = () => {
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState('Menginisialisasi Sistem...');
+  const [loadingMsg, setLoadingMsg] = useState('Menginisialisasi...');
   
   const isPersonalizedRef = useRef(false);
   const urlSalesDataRef = useRef<any>(null);
@@ -71,30 +70,34 @@ const App: React.FC = () => {
   
   const firebaseUnsubscribe = useRef<any>(null);
 
+  // Fungsi sakti untuk menggabungkan data Default + Cloud + Link Spesifik
   const applyData = useCallback((data: any, saveLocally = true) => {
     if (!data || isEditingRef.current) return;
     
-    // Prioritaskan data cloud jika tersedia, jika tidak biarkan state saat ini
+    // 1. Update Katalog & Promo
     if (data.products && Array.isArray(data.products) && data.products.length > 0) setProducts(data.products);
     if (data.promos && Array.isArray(data.promos) && data.promos.length > 0) setPromos(data.promos);
     
+    // 2. Update Sales dengan Logika Merging yang Benar
     if (data.salesInfo) {
-      if (isPersonalizedRef.current && urlSalesDataRef.current) {
-        setSalesInfo((prev) => ({ 
+      setSalesInfo((prev) => {
+        const merged = { 
           ...prev, 
-          ...data.salesInfo, // Foto & Bio lengkap dari Cloud
-          ...urlSalesDataRef.current // Nama & WA unik dari Link
-        }));
-      } else {
-        setSalesInfo((prev) => ({ ...prev, ...data.salesInfo }));
-      }
+          ...data.salesInfo, // Ambil foto, bio, dll dari cloud
+        };
+        // Jika ini link personal, pastikan Nama & WA dari link yang menang
+        if (isPersonalizedRef.current && urlSalesDataRef.current) {
+          return { ...merged, ...urlSalesDataRef.current };
+        }
+        return merged;
+      });
     }
 
+    // 3. Update Branding & Story
     if (data.logo !== undefined) setLogo(data.logo);
     if (data.heroBackground) setHeroBackground(data.heroBackground);
     if (data.dealerName) setDealerName(data.dealerName);
     if (data.dealerAddress) setDealerAddress(data.dealerAddress);
-    
     if (data.storyTitle) setStoryTitle(data.storyTitle);
     if (data.storyCity) setStoryCity(data.storyCity);
     if (data.storyText1) setStoryText1(data.storyText1);
@@ -106,26 +109,27 @@ const App: React.FC = () => {
     if (saveLocally) {
       localStorage.setItem('honda_catalog', JSON.stringify(data.products || products));
       localStorage.setItem('honda_promos', JSON.stringify(data.promos || promos));
-      if (!isPersonalizedRef.current && data.salesInfo) localStorage.setItem('honda_sales_info', JSON.stringify(data.salesInfo));
+      if (!isPersonalizedRef.current && data.salesInfo) {
+        localStorage.setItem('honda_sales_info', JSON.stringify(data.salesInfo));
+      }
       if (data.logo) localStorage.setItem('honda_dealer_logo', data.logo);
       if (data.heroBackground) localStorage.setItem('honda_hero_bg', data.heroBackground);
       if (data.dealerName) localStorage.setItem('honda_dealer_name', data.dealerName);
       if (data.dealerAddress) localStorage.setItem('honda_dealer_address', data.dealerAddress);
-      
       localStorage.setItem('honda_setup_completed', 'true');
     }
   }, [products, promos]);
 
   useEffect(() => {
     const initialize = async () => {
-      setLoadingMsg('Menyiapkan Dealer...');
+      setLoadingMsg('Membaca Konfigurasi...');
       const urlParams = new URLSearchParams(window.location.search);
       const staffMode = urlParams.get('staff') === 'true';
       setIsStaff(staffMode);
 
-      let initialFbConfig = localStorage.getItem('honda_firebase_config');
+      let fbConfigToUse = localStorage.getItem('honda_firebase_config');
 
-      // 1. Dekode Link Personal (?p=...)
+      // STEP 1: Parse Link Personal (?p=...)
       const pParam = urlParams.get('p');
       if (pParam) {
         const decoded = robustAtob(pParam);
@@ -135,73 +139,69 @@ const App: React.FC = () => {
             if (parsed.salesInfo) {
               urlSalesDataRef.current = parsed.salesInfo;
               isPersonalizedRef.current = true;
+              // Set salesInfo sementara (tanpa foto) agar Nama/WA muncul cepat
+              setSalesInfo(prev => ({ ...prev, ...parsed.salesInfo }));
             }
             if (parsed.fbConfig) {
-              initialFbConfig = JSON.stringify(parsed.fbConfig);
-              localStorage.setItem('honda_firebase_config', initialFbConfig);
+              fbConfigToUse = typeof parsed.fbConfig === 'string' ? parsed.fbConfig : JSON.stringify(parsed.fbConfig);
+              localStorage.setItem('honda_firebase_config', fbConfigToUse);
             }
           } catch(e) { console.error("URL Parameter Parse Error"); }
         }
       }
 
-      // 2. Dekode Setup Link (?fb=...)
+      // STEP 2: Parse Setup Link (?fb=...)
       const fbParam = urlParams.get('fb');
       if (fbParam) {
         const decodedFb = robustAtob(fbParam);
         if (decodedFb) {
-          initialFbConfig = decodedFb;
+          fbConfigToUse = decodedFb;
           localStorage.setItem('honda_firebase_config', decodedFb);
         }
       }
 
-      // 3. Load Data Lokal (Fallback Cepat)
+      // STEP 3: Load Data Lokal (Sambil Nunggu Cloud)
       const isSetupCompleted = localStorage.getItem('honda_setup_completed') === 'true';
       if (isSetupCompleted) {
         setProducts(JSON.parse(localStorage.getItem('honda_catalog') || '[]'));
         setPromos(JSON.parse(localStorage.getItem('honda_promos') || '[]'));
         setLogo(localStorage.getItem('honda_dealer_logo'));
         setDealerName(localStorage.getItem('honda_dealer_name') || 'HONDA DEALER');
-        setDealerAddress(localStorage.getItem('honda_dealer_address') || '');
-        setSalesInfo(JSON.parse(localStorage.getItem('honda_sales_info') || JSON.stringify(DEFAULT_SALES)));
+        if (!isPersonalizedRef.current) {
+          setSalesInfo(JSON.parse(localStorage.getItem('honda_sales_info') || JSON.stringify(DEFAULT_SALES)));
+        }
       }
 
-      // 4. Sinkronisasi CLOUD (WAJIB sebelum Finish)
-      if (initialFbConfig) {
-        setLoadingMsg('Menyambungkan Database Cloud...');
+      // STEP 4: SINKRONISASI CLOUD (WAJIB SEBELUM RENDER)
+      if (fbConfigToUse) {
+        setLoadingMsg('Menyambungkan Database...');
         try {
-          const config = JSON.parse(initialFbConfig);
+          const config = JSON.parse(fbConfigToUse);
           initFirebase(config);
           setCloudStatus('connected');
           
-          setLoadingMsg('Mengunduh Data Terbaru...');
-          // Gunakan Promise.race untuk mencegah hang jika internet lambat
-          const cloudDataPromise = getDealerDataOnce();
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000));
-          
-          try {
-            const cloudData = await Promise.race([cloudDataPromise, timeoutPromise]) as any;
-            if (cloudData) {
-              applyData(cloudData, true);
-            }
-          } catch (error) {
-            console.warn("Cloud sync timed out, using local/default data.");
+          setLoadingMsg('Sinkronisasi Data Dealer...');
+          const cloudData = await getDealerDataOnce();
+          if (cloudData) {
+            applyData(cloudData, true);
           }
-
-          // Tetap subscribe untuk update di masa depan
+          
+          // Tetap subscribe untuk update real-time
           firebaseUnsubscribe.current = subscribeToDealerData((updatedData) => {
             applyData(updatedData, true);
           });
         } catch (e) { 
           setCloudStatus('error');
+          console.error("Firebase Sync Error:", e);
         }
       } else if (!isSetupCompleted) {
-        // Jika tidak ada config dan belum pernah setup, tampilkan default
+        // Jika tidak ada cloud dan belum setup, gunakan data awal
         setProducts(INITIAL_PRODUCTS);
         setPromos(DEFAULT_PROMOS);
       }
       
-      setLoadingMsg('Selamat Datang!');
-      setTimeout(() => setIsInitialized(true), 600);
+      setLoadingMsg('Siap!');
+      setTimeout(() => setIsInitialized(true), 800);
     };
 
     initialize();
@@ -245,14 +245,15 @@ const App: React.FC = () => {
         </div>
         <div className="mt-8 flex flex-col items-center gap-2">
            <div className="w-48 h-1 bg-gray-100 rounded-full overflow-hidden">
-             <div className="w-1/2 h-full bg-honda-red animate-[shimmer_1.5s_infinite_linear]"></div>
+             <div className="w-full h-full bg-honda-red origin-left animate-[loading_2s_infinite_ease-in-out]"></div>
            </div>
            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-300 animate-pulse">{loadingMsg}</p>
         </div>
         <style dangerouslySetInnerHTML={{ __html: `
-          @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(200%); }
+          @keyframes loading {
+            0% { transform: scaleX(0); }
+            50% { transform: scaleX(1); }
+            100% { transform: scaleX(0); transform-origin: right; }
           }
         `}} />
       </div>
@@ -279,12 +280,10 @@ const App: React.FC = () => {
       
       {isStaff && (
         <div className={`fixed bottom-6 left-6 z-[100] px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-widest border shadow-xl flex items-center gap-2 ${
-          cloudStatus === 'connected' ? 'bg-green-500 text-white border-green-400' :
-          cloudStatus === 'syncing' ? 'bg-orange-500 text-white border-orange-400' :
-          'bg-gray-800 text-gray-400 border-gray-700'
+          cloudStatus === 'connected' ? 'bg-green-500 text-white border-green-400' : 'bg-gray-800 text-gray-400 border-gray-700'
         }`}>
           <div className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'connected' ? 'bg-white animate-pulse' : 'bg-current'}`}></div>
-          DB: {cloudStatus}
+          Cloud {cloudStatus}
         </div>
       )}
 
