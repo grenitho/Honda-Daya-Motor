@@ -24,25 +24,47 @@ export const initFirebase = (config: FirebaseConfig) => {
   }
 };
 
-// Mengambil Data Global Dealer (Katalog, Promo, Logo)
+// Fungsi Migrasi: Mencari data di alamat lama jika alamat baru kosong
 export const getGlobalDealerData = async () => {
   if (!db) return null;
   try {
-    const globalDoc = doc(db, 'configs', 'dealer_info');
-    const snap = await getDoc(globalDoc);
-    return snap.exists() ? snap.data() : null;
+    const newDoc = doc(db, 'configs', 'dealer_info');
+    const newSnap = await getDoc(newDoc);
+    
+    if (newSnap.exists()) return newSnap.data();
+
+    // JIKA KOSONG, CEK ALAMAT LAMA (Support untuk pemulihan data)
+    const oldDoc = doc(db, 'dealer_data', 'main_config');
+    const oldSnap = await getDoc(oldDoc);
+    if (oldSnap.exists()) {
+      const data = oldSnap.data();
+      // Migrasi otomatis ke alamat baru
+      await setDoc(newDoc, { ...data, migrated: true });
+      return data;
+    }
+    return null;
   } catch (e) {
     return null;
   }
 };
 
-// Mengambil Profil Sales Spesifik berdasarkan WhatsApp ID
 export const getSalesProfile = async (whatsappId: string) => {
   if (!db || !whatsappId) return null;
   try {
     const salesDoc = doc(db, 'sales_profiles', whatsappId);
     const snap = await getDoc(salesDoc);
-    return snap.exists() ? snap.data() : null;
+    
+    if (snap.exists()) return snap.data();
+
+    // Jika ini master_profile dan kosong, coba cek dari alamat lama
+    if (whatsappId === 'master_profile') {
+       const oldDoc = doc(db, 'dealer_data', 'main_config');
+       const oldSnap = await getDoc(oldDoc);
+       if (oldSnap.exists() && oldSnap.data().salesInfo) {
+         return oldSnap.data().salesInfo;
+       }
+    }
+    return null;
   } catch (e) {
     return null;
   }
@@ -64,7 +86,6 @@ export const subscribeToSalesProfile = (whatsappId: string, callback: (data: any
   });
 };
 
-// Simpan Data Global (Katalog & Dealer Info)
 export const saveGlobalData = async (data: any) => {
   if (!db) return false;
   try {
@@ -76,7 +97,6 @@ export const saveGlobalData = async (data: any) => {
   }
 };
 
-// Simpan Profil Sales secara Mandiri (ID = WhatsApp)
 export const saveSalesProfile = async (whatsappId: string, salesData: any) => {
   if (!db || !whatsappId) return false;
   try {
