@@ -31,7 +31,7 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
     if (!isOpen) return;
     const baseUrl = `${window.location.origin}${window.location.pathname}`;
     
-    // Kita menyertakan data profile dasar ke URL
+    // Hilangkan foto profil agar link tidak terlalu panjang dan menyebabkan error
     const { photo, ...lightSalesInfo } = tempSales;
     const personalData = { salesInfo: lightSalesInfo }; 
     const encoded = safeBtoa(JSON.stringify(personalData));
@@ -40,7 +40,6 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
     setPersonalUrl(`${baseUrl}?p=${encoded}${remoteParam}`);
   }, [tempSales, isOpen, remoteUrl]);
 
-  // Sync state when salesInfo prop changes
   useEffect(() => {
     if (isOpen) {
       setTempSales(salesInfo);
@@ -106,7 +105,6 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
           {activeTab === 'edit' ? (
             <div className="animate-in fade-in slide-in-from-left-4 duration-300 space-y-8">
               
-              {/* BAGIAN 1: IDENTITAS VISUAL */}
               <div className="grid grid-cols-12 gap-8">
                 <div className="col-span-full md:col-span-4">
                   <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Foto Profil</label>
@@ -153,7 +151,6 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
                 </div>
               </div>
 
-              {/* BAGIAN 2: MEDIA SOSIAL (LINK) */}
               <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100 space-y-4">
                 <h4 className="text-[10px] font-black uppercase italic text-gray-900 border-b pb-2 flex items-center gap-2">
                   <svg className="w-4 h-4 text-honda-red" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" /><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" /></svg>
@@ -195,7 +192,6 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
                 <p className="text-[7px] text-gray-400 italic">Kosongkan link jika Anda tidak ingin ikon sosial media tertentu tampil di website.</p>
               </div>
 
-              {/* FOOTER ACTION */}
               <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex gap-4">
                 <button onClick={onClose} className="flex-1 py-3 text-xs font-bold uppercase text-gray-400 hover:text-gray-600 transition-colors">Batal</button>
                 <button 
@@ -208,7 +204,6 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
             </div>
           ) : (
             <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-6">
-              {/* QR Code Section */}
               <div className="flex flex-col md:flex-row items-center gap-8 p-6 bg-gray-50 rounded-[2.5rem] border border-gray-100">
                 <div className="bg-white p-4 rounded-3xl shadow-xl border border-gray-100 shrink-0">
                   <img src={qrCodeUrl} alt="QR Code" className="w-40 h-40" />
@@ -232,7 +227,6 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
                 </div>
               </div>
 
-              {/* Shortlinks */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 space-y-4">
                   <div className="flex items-center gap-2">
@@ -263,7 +257,6 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
                 </div>
               </div>
 
-              {/* The URL */}
               <div className="p-6 bg-red-50 rounded-3xl border border-red-100 space-y-3">
                 <label className="text-[8px] font-black text-honda-red uppercase tracking-widest">Link Website Personal Anda</label>
                 <div className="flex gap-2">

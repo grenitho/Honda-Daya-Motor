@@ -55,16 +55,34 @@ const App: React.FC = () => {
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
-  const [isPersonalized, setIsPersonalized] = useState(false);
+  
+  // Gunakan Ref untuk isPersonalized agar tidak memicu re-render / loop pada useEffect
+  const isPersonalizedRef = useRef(false);
+  const urlSalesDataRef = useRef<any>(null);
   const [cloudStatus, setCloudStatus] = useState<'connected' | 'offline' | 'syncing' | 'error'>('offline');
   
   const firebaseUnsubscribe = useRef<any>(null);
 
   const applyData = useCallback((data: any, saveLocally = true) => {
     if (!data) return;
+    
     if (data.products) setProducts(data.products);
     if (data.promos) setPromos(data.promos);
-    if (data.salesInfo && !isPersonalized) setSalesInfo((prev) => ({ ...prev, ...data.salesInfo }));
+    
+    // Logika Penggabungan Data Sales
+    if (data.salesInfo) {
+      if (isPersonalizedRef.current && urlSalesDataRef.current) {
+        // Jika link personal digunakan, gabungkan info dari link dengan info dari Cloud (ambil fotonya saja dari cloud)
+        setSalesInfo((prev) => ({ 
+          ...prev, 
+          ...data.salesInfo, // Ambil data default/cloud dulu (termasuk foto)
+          ...urlSalesDataRef.current // Timpa dengan data dari link (nama, wa, dll)
+        }));
+      } else {
+        setSalesInfo((prev) => ({ ...prev, ...data.salesInfo }));
+      }
+    }
+
     if (data.logo !== undefined) setLogo(data.logo);
     if (data.heroBackground) setHeroBackground(data.heroBackground);
     if (data.dealerName) setDealerName(data.dealerName);
@@ -81,7 +99,7 @@ const App: React.FC = () => {
     if (saveLocally) {
       if (data.products) localStorage.setItem('honda_catalog', JSON.stringify(data.products));
       if (data.promos) localStorage.setItem('honda_promos', JSON.stringify(data.promos));
-      if (data.salesInfo && !isPersonalized) localStorage.setItem('honda_sales_info', JSON.stringify(data.salesInfo));
+      if (data.salesInfo && !isPersonalizedRef.current) localStorage.setItem('honda_sales_info', JSON.stringify(data.salesInfo));
       if (data.logo) localStorage.setItem('honda_dealer_logo', data.logo);
       if (data.heroBackground) localStorage.setItem('honda_hero_bg', data.heroBackground);
       if (data.dealerName) localStorage.setItem('honda_dealer_name', data.dealerName);
@@ -97,7 +115,7 @@ const App: React.FC = () => {
       
       localStorage.setItem('honda_setup_completed', 'true');
     }
-  }, [isPersonalized]);
+  }, []);
 
   const createLocalBackup = useCallback(() => {
     const currentData = {
@@ -125,6 +143,7 @@ const App: React.FC = () => {
       const urlParams = new URLSearchParams(window.location.search);
       setIsStaff(urlParams.get('staff') === 'true');
 
+      // 1. Cek Config Firebase
       const fbParam = urlParams.get('fb');
       if (fbParam) {
         const decodedFb = safeAtob(fbParam);
@@ -134,28 +153,34 @@ const App: React.FC = () => {
         }
       }
 
+      // 2. Cek Personal Link (Paling Prioritas)
       const pParam = urlParams.get('p');
-      let urlSalesData = null;
       if (pParam) {
         const decoded = safeAtob(pParam);
         if (decoded) {
           try {
             const parsed = JSON.parse(decoded);
             if (parsed.salesInfo) {
-              urlSalesData = parsed.salesInfo;
-              setIsPersonalized(true);
-              setSalesInfo(urlSalesData);
+              urlSalesDataRef.current = parsed.salesInfo;
+              isPersonalizedRef.current = true;
+              // Set sementara sambil menunggu data lengkap (foto) dari cloud/local
+              setSalesInfo((prev) => ({ ...prev, ...parsed.salesInfo }));
             }
           } catch(e) { console.error("Invalid personal link"); }
         }
       }
 
+      // 3. Muat Data Lokal
       const isSetupCompleted = localStorage.getItem('honda_setup_completed') === 'true';
       setProducts(JSON.parse(localStorage.getItem('honda_catalog') || (isSetupCompleted ? '[]' : JSON.stringify(INITIAL_PRODUCTS))));
       setPromos(JSON.parse(localStorage.getItem('honda_promos') || (isSetupCompleted ? '[]' : JSON.stringify(DEFAULT_PROMOS))));
       
-      if (!urlSalesData) {
+      if (!isPersonalizedRef.current) {
         setSalesInfo(JSON.parse(localStorage.getItem('honda_sales_info') || JSON.stringify(DEFAULT_SALES)));
+      } else {
+        // Gabungkan data dari LocalStorage (terutama foto) jika ada
+        const localSales = JSON.parse(localStorage.getItem('honda_sales_info') || '{}');
+        setSalesInfo((prev) => ({ ...prev, ...localSales, ...urlSalesDataRef.current }));
       }
 
       setLogo(localStorage.getItem('honda_dealer_logo') || (isSetupCompleted ? null : DEFAULT_LOGO_URL));
@@ -171,12 +196,12 @@ const App: React.FC = () => {
       setMisi(localStorage.getItem('honda_misi') || DEFAULT_STORY.misi);
       setSalesAboutMessage(localStorage.getItem('honda_sales_about_msg') || "Sebagai konsultan penjualan Anda, misi saya adalah memberikan kemudahan dalam setiap langkah kepemilikan motor Honda Anda...");
 
+      // 4. Inisialisasi Firebase & Sync
       const fbConfigStr = localStorage.getItem('honda_firebase_config');
       if (fbConfigStr) {
         try {
           initFirebase(JSON.parse(fbConfigStr));
           setCloudStatus('connected');
-          // Sinkronisasi real-time tetap aktif untuk kolaborasi tim
           firebaseUnsubscribe.current = subscribeToDealerData((updatedData) => applyData(updatedData, true));
         } catch (e) { 
           setCloudStatus('error');
@@ -210,7 +235,7 @@ const App: React.FC = () => {
   };
 
   const handlePullFromCloud = async () => {
-    createLocalBackup(); // Buat cadangan lokal SEBELUM menarik data cloud
+    createLocalBackup();
     const cloudData = await getDealerDataOnce();
     if (cloudData) applyData(cloudData, true);
   };
@@ -220,7 +245,7 @@ const App: React.FC = () => {
     if (backupStr) {
       const backupData = JSON.parse(backupStr);
       applyData(backupData, true);
-      localStorage.removeItem('honda_emergency_backup'); // Hapus setelah berhasil restore
+      localStorage.removeItem('honda_emergency_backup');
     }
   };
 
