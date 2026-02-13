@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { SalesPerson } from '../types';
 
@@ -12,10 +11,16 @@ interface SalesProfileModalProps {
 
 const safeBtoa = (str: string) => {
   try {
-    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => {
-      return String.fromCharCode(parseInt(p1, 16));
-    }));
-  } catch (e) { return ""; }
+    const bytes = new TextEncoder().encode(str);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  } catch (e) { 
+    console.error("Encoding Error:", e);
+    return ""; 
+  }
 };
 
 const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, salesInfo, remoteUrl, onSave }) => {
@@ -28,10 +33,10 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
     if (!isOpen) return;
     const baseUrl = `${window.location.origin}${window.location.pathname}`;
     const fbConfigRaw = localStorage.getItem('honda_firebase_config');
+    const cleanId = String(tempSales.whatsapp).trim();
     
-    // LINK UNIK: Sekarang membawa ID WhatsApp Sales agar data Cloud tidak tertukar
     const personalData = { 
-      salesId: tempSales.whatsapp, // Gunakan nomor WA sebagai kunci profil di Cloud
+      salesId: cleanId,
       fbConfig: fbConfigRaw ? JSON.parse(fbConfigRaw) : null,
       t: Date.now() 
     }; 
@@ -75,10 +80,19 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
             </div>
             <button onClick={onClose} className="hover:rotate-90 transition-transform text-2xl p-2">✕</button>
           </div>
-          
           <div className="flex gap-4 mt-2">
-            <button onClick={() => setActiveTab('edit')} className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'edit' ? 'border-white text-white' : 'border-transparent text-red-200'}`}>Edit Profil</button>
-            <button onClick={() => setActiveTab('share')} className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'share' ? 'border-white text-white' : 'border-transparent text-red-200'}`}>Link Share (Unik)</button>
+            <button 
+              onClick={() => setActiveTab('edit')} 
+              className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'edit' ? 'border-white text-white' : 'border-transparent text-red-200'}`}
+            >
+              Edit Profil
+            </button>
+            <button 
+              onClick={() => setActiveTab('share')} 
+              className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'share' ? 'border-white text-white' : 'border-transparent text-red-200'}`}
+            >
+              Link Share (Unik)
+            </button>
           </div>
         </div>
         
@@ -97,7 +111,6 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
                     <input type="file" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
                   </div>
                 </div>
-
                 <div className="col-span-full md:col-span-8 space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
@@ -115,7 +128,6 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
                   </div>
                 </div>
               </div>
-
               <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex gap-4">
                 <button onClick={onClose} className="flex-1 py-3 text-xs font-bold uppercase text-gray-400">Batal</button>
                 <button onClick={() => { onSave(tempSales); onClose(); }} className="flex-[2] bg-gray-900 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest shadow-xl">Simpan & Sync Cloud</button>
@@ -126,25 +138,18 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
               <div className="inline-block bg-white p-6 rounded-3xl shadow-xl border border-gray-100 mx-auto">
                 <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48" />
               </div>
-              
               <div className="space-y-3">
                 <label className="text-[9px] font-black text-honda-red uppercase tracking-widest">Link Personal {tempSales.name}</label>
                 <div className="flex gap-2">
                   <div className="flex-grow p-4 bg-gray-50 border border-red-50 rounded-xl overflow-hidden">
                     <p className="text-[8px] text-gray-400 truncate font-mono">{personalUrl}</p>
                   </div>
-                  <button onClick={copy} className={`px-6 rounded-xl font-bold uppercase text-[10px] transition-all ${copied ? 'bg-green-500 text-white' : 'bg-honda-red text-white'}`}>{copied ? 'Tersalin' : 'Copy'}</button>
+                  <button onClick={copy} className={`px-6 rounded-xl font-black uppercase text-[10px] transition-all shadow-md ${copied ? 'bg-green-500 text-white' : 'bg-gray-900 text-white hover:bg-honda-red'}`}>
+                    {copied ? 'Copied' : 'Copy'}
+                  </button>
                 </div>
+                <p className="text-[8px] text-gray-400 uppercase font-medium">Bagikan link ini ke calon konsumen Anda.</p>
               </div>
-
-              <div className="p-6 bg-blue-50 rounded-3xl border border-blue-100 text-left">
-                <h4 className="text-[10px] font-black text-blue-900 uppercase italic mb-2">SISTEM MULTI-PROFILE AKTIF:</h4>
-                <p className="text-[9px] text-blue-700 leading-relaxed">
-                  Link ini membawa ID WhatsApp Anda. Data foto dan profil Anda disimpan di "kotak" Cloud terpisah. Link ini tidak akan pernah tertukar dengan sales lain meskipun Admin mengganti foto di laptop utama.
-                </p>
-              </div>
-
-              <button onClick={onClose} className="w-full bg-gray-900 text-white py-3 rounded-xl font-black uppercase text-xs shadow-lg">Selesai</button>
             </div>
           )}
         </div>

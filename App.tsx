@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Navbar from './components/Navbar.tsx';
 import Footer from './components/Footer.tsx';
@@ -18,13 +17,21 @@ import { initFirebase, subscribeToGlobalData, subscribeToSalesProfile, saveGloba
 
 type ViewState = 'home' | 'about' | 'contact';
 
-const robustAtob = (str: string) => {
+const robustAtob = (str: string | null) => {
+  if (!str) return null;
   try {
-    const padding = str.length % 4;
-    if (padding > 0) str += "=".repeat(4 - padding);
-    return decodeURIComponent(atob(str).split('').map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+    const normalized = str.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = normalized.length % 4;
+    const padded = pad ? normalized + '='.repeat(4 - pad) : normalized;
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new TextDecoder().decode(bytes);
   } catch (e) {
-    try { return decodeURIComponent(escape(atob(str))); } catch (e2) { return null; }
+    console.error("Decoding Error:", e);
+    return null;
   }
 };
 
@@ -55,151 +62,122 @@ const App: React.FC = () => {
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState('Menstabilkan Sistem...');
+  const [loadingMsg, setLoadingMsg] = useState('Menginisialisasi...');
   
   const isPersonalizedRef = useRef(false);
   const activeSalesIdRef = useRef<string | null>(null);
   const [cloudStatus, setCloudStatus] = useState<'connected' | 'offline' | 'syncing' | 'error'>('offline');
-  
   const unsubsRef = useRef<any[]>([]);
 
   const safeSetLocal = (key: string, value: string) => {
-    try { localStorage.setItem(key, value); } catch (e) { console.warn("Penyimpanan Penuh", e); }
+    try { localStorage.setItem(key, value); } catch (e) { }
   };
-
-  const loadLocalData = useCallback(() => {
-    const isSetupCompleted = localStorage.getItem('honda_setup_completed') === 'true';
-    if (!isSetupCompleted) {
-      setProducts(INITIAL_PRODUCTS);
-      setPromos(DEFAULT_PROMOS);
-      return;
-    }
-
-    try {
-      setProducts(JSON.parse(localStorage.getItem('honda_catalog') || '[]'));
-      setPromos(JSON.parse(localStorage.getItem('honda_promos') || '[]'));
-      setLogo(localStorage.getItem('honda_dealer_logo') || DEFAULT_LOGO_URL);
-      setDealerName(localStorage.getItem('honda_dealer_name') || 'HONDA DAYA MOTOR');
-      setDealerAddress(localStorage.getItem('honda_dealer_address') || '');
-      setHeroBackground(localStorage.getItem('honda_hero_bg') || DEFAULT_HERO_BG_URL);
-      setStoryTitle(localStorage.getItem('honda_story_title') || DEFAULT_STORY.title);
-      setStoryCity(localStorage.getItem('honda_story_city') || DEFAULT_STORY.city);
-      setStoryText1(localStorage.getItem('honda_story_text1') || DEFAULT_STORY.text1);
-      setStoryText2(localStorage.getItem('honda_story_text2') || DEFAULT_STORY.text2);
-      setVisi(localStorage.getItem('honda_visi') || DEFAULT_STORY.visi);
-      setMisi(localStorage.getItem('honda_misi') || DEFAULT_STORY.misi);
-      setSalesAboutMessage(localStorage.getItem('honda_sales_about_msg') || "");
-
-      const localSales = localStorage.getItem('honda_sales_info');
-      if (localSales) setSalesInfo(JSON.parse(localSales));
-    } catch (e) { console.error("Gagal memuat data lokal"); }
-  }, []);
 
   const applyGlobalData = useCallback((data: any) => {
     if (!data) return;
-    
-    // Gunakan updater pattern untuk menghindari dependensi state yang menyebabkan loop
-    if (data.products) { setProducts(data.products); safeSetLocal('honda_catalog', JSON.stringify(data.products)); }
-    if (data.promos) { setPromos(data.promos); safeSetLocal('honda_promos', JSON.stringify(data.promos)); }
-    if (data.logo !== undefined) { setLogo(data.logo); safeSetLocal('honda_dealer_logo', data.logo || ""); }
-    if (data.dealerName) { setDealerName(data.dealerName); safeSetLocal('honda_dealer_name', data.dealerName); }
-    if (data.dealerAddress) { setDealerAddress(data.dealerAddress); safeSetLocal('honda_dealer_address', data.dealerAddress); }
-    if (data.heroBackground) { setHeroBackground(data.heroBackground); safeSetLocal('honda_hero_bg', data.heroBackground); }
-    
-    // Sangat Penting: Data Story/Visi/Misi
-    if (data.storyTitle) { setStoryTitle(data.storyTitle); safeSetLocal('honda_story_title', data.storyTitle); }
-    if (data.storyCity) { setStoryCity(data.storyCity); safeSetLocal('honda_story_city', data.storyCity); }
-    if (data.storyText1) { setStoryText1(data.storyText1); safeSetLocal('honda_story_text1', data.storyText1); }
-    if (data.storyText2) { setStoryText2(data.storyText2); safeSetLocal('honda_story_text2', data.storyText2); }
-    if (data.visi) { setVisi(data.visi); safeSetLocal('honda_visi', data.visi); }
-    if (data.misi) { setMisi(data.misi); safeSetLocal('honda_misi', data.misi); }
-    if (data.salesAboutMessage) { setSalesAboutMessage(data.salesAboutMessage); safeSetLocal('honda_sales_about_msg', data.salesAboutMessage); }
-    
-    safeSetLocal('honda_setup_completed', 'true');
+    if (data.products && data.products.length > 0) setProducts(data.products);
+    if (data.promos && data.promos.length > 0) setPromos(data.promos);
+    if (data.logo) setLogo(data.logo);
+    if (data.dealerName) setDealerName(data.dealerName);
+    if (data.dealerAddress) setDealerAddress(data.dealerAddress);
+    if (data.heroBackground) setHeroBackground(data.heroBackground);
+    if (data.storyTitle) setStoryTitle(data.storyTitle);
+    if (data.storyCity) setStoryCity(data.storyCity);
+    if (data.storyText1) setStoryText1(data.storyText1);
+    if (data.storyText2) setStoryText2(data.storyText2);
+    if (data.visi) setVisi(data.visi);
+    if (data.misi) setMisi(data.misi);
+    if (data.salesAboutMessage) setSalesAboutMessage(data.salesAboutMessage);
   }, []);
 
   const applySalesData = useCallback((data: any) => {
-    if (!data) return;
-    setSalesInfo(prev => {
-      const updated = { ...prev, ...data };
-      if (!isPersonalizedRef.current) {
-        safeSetLocal('honda_sales_info', JSON.stringify(updated));
-      }
-      return updated;
-    });
+    if (!data || !data.name) return;
+    setSalesInfo(prev => ({ ...prev, ...data }));
   }, []);
 
   useEffect(() => {
     let mounted = true;
-    
     const initialize = async () => {
-      loadLocalData();
       const urlParams = new URLSearchParams(window.location.search);
-      if (mounted) setIsStaff(urlParams.get('staff') === 'true');
-
+      const pParam = urlParams.get('p');
       let fbConfigToUse = localStorage.getItem('honda_firebase_config');
       let targetSalesId = null;
 
-      const pParam = urlParams.get('p');
       if (pParam) {
         const decoded = robustAtob(pParam);
         if (decoded) {
           try {
             const parsed = JSON.parse(decoded);
             if (parsed.salesId) {
-              targetSalesId = parsed.salesId;
-              activeSalesIdRef.current = parsed.salesId;
+              targetSalesId = String(parsed.salesId).trim();
+              activeSalesIdRef.current = targetSalesId;
               isPersonalizedRef.current = true;
             }
             if (parsed.fbConfig) {
               fbConfigToUse = typeof parsed.fbConfig === 'string' ? parsed.fbConfig : JSON.stringify(parsed.fbConfig);
-              safeSetLocal('honda_firebase_config', fbConfigToUse);
             }
-          } catch(e) {}
+          } catch(e) { console.error("Link Param Error", e); }
         }
       }
 
+      if (localStorage.getItem('honda_setup_completed') === 'true') {
+        try {
+          const localProducts = localStorage.getItem('honda_catalog');
+          if (localProducts) setProducts(JSON.parse(localProducts));
+          const localPromos = localStorage.getItem('honda_promos');
+          if (localPromos) setPromos(JSON.parse(localPromos));
+          setLogo(localStorage.getItem('honda_dealer_logo'));
+          setDealerName(localStorage.getItem('honda_dealer_name') || 'HONDA DAYA MOTOR');
+          setDealerAddress(localStorage.getItem('honda_dealer_address') || '');
+          setHeroBackground(localStorage.getItem('honda_hero_bg') || DEFAULT_HERO_BG_URL);
+          if (!isPersonalizedRef.current) {
+            const localSales = localStorage.getItem('honda_sales_info');
+            if (localSales) setSalesInfo(JSON.parse(localSales));
+          }
+        } catch (e) { }
+      } else {
+        setProducts(INITIAL_PRODUCTS);
+        setPromos(DEFAULT_PROMOS);
+      }
+
+      if (mounted) setIsStaff(urlParams.get('staff') === 'true');
+
       if (fbConfigToUse && mounted) {
-        setLoadingMsg('Menghubungkan Cloud...');
         try {
           const config = JSON.parse(fbConfigToUse);
           initFirebase(config);
-          if (mounted) setCloudStatus('connected');
-          
+          setCloudStatus('connected');
           const globalData = await getGlobalDealerData();
           if (globalData && mounted) applyGlobalData(globalData);
-
+          
           const salesIdToFetch = targetSalesId || 'master_profile';
           const profileData = await getSalesProfile(salesIdToFetch);
           if (profileData && mounted) applySalesData(profileData);
 
-          // Hapus unsubs lama
           unsubsRef.current.forEach(u => u?.());
-          unsubsRef.current = [];
-
-          // Pasang listener baru dengan callback yang stabil
-          unsubsRef.current.push(subscribeToGlobalData(applyGlobalData));
-          unsubsRef.current.push(subscribeToSalesProfile(salesIdToFetch, applySalesData));
-        } catch (e) {
-          if (mounted) setCloudStatus('error');
+          unsubsRef.current = [
+            subscribeToGlobalData(applyGlobalData),
+            subscribeToSalesProfile(salesIdToFetch, applySalesData)
+          ];
+        } catch (e) { 
+          if (mounted) setCloudStatus('error'); 
         }
       }
-      
+
       if (mounted) {
-        setLoadingMsg('Siap!');
+        setLoadingMsg('Siap');
         setTimeout(() => setIsInitialized(true), 500);
       }
     };
 
     initialize();
     return () => { 
-      mounted = false;
-      unsubsRef.current.forEach(u => u?.());
+      mounted = false; 
+      unsubsRef.current.forEach(u => u?.()); 
     };
-  }, [applyGlobalData, applySalesData, loadLocalData]); 
+  }, [applyGlobalData, applySalesData]);
 
   const handleSaveAll = async (newSales: SalesPerson, newLogo: string | null, newName: string, newAddress: string, newHeroBg: string, storyData?: any) => {
-    // 1. Update State Lokal (Instant feedback)
     setSalesInfo(newSales);
     setLogo(newLogo);
     setDealerName(newName);
@@ -214,54 +192,30 @@ const App: React.FC = () => {
       if (storyData.visi) setVisi(storyData.visi);
       if (storyData.misi) setMisi(storyData.misi);
       if (storyData.salesAboutMessage) setSalesAboutMessage(storyData.salesAboutMessage);
+      if (storyData.products) setProducts(storyData.products);
+      if (storyData.promos) setPromos(storyData.promos);
     }
 
-    // 2. Kunci ke Local Storage (Pagar Pengaman)
-    safeSetLocal('honda_sales_info', JSON.stringify(newSales));
     safeSetLocal('honda_dealer_logo', newLogo || "");
     safeSetLocal('honda_dealer_name', newName);
     safeSetLocal('honda_dealer_address', newAddress);
     safeSetLocal('honda_hero_bg', newHeroBg);
-    
-    if (storyData) {
-      if (storyData.storyTitle) safeSetLocal('honda_story_title', storyData.storyTitle);
-      if (storyData.storyCity) safeSetLocal('honda_story_city', storyData.storyCity);
-      if (storyData.storyText1) safeSetLocal('honda_story_text1', storyData.storyText1);
-      if (storyData.storyText2) safeSetLocal('honda_story_text2', storyData.storyText2);
-      if (storyData.visi) safeSetLocal('honda_visi', storyData.visi);
-      if (storyData.misi) safeSetLocal('honda_misi', storyData.misi);
-      if (storyData.salesAboutMessage) safeSetLocal('honda_sales_about_msg', storyData.salesAboutMessage);
-      if (storyData.products) safeSetLocal('honda_catalog', JSON.stringify(storyData.products));
-      if (storyData.promos) safeSetLocal('honda_promos', JSON.stringify(storyData.promos));
-    }
     safeSetLocal('honda_setup_completed', 'true');
+    if (!isPersonalizedRef.current) safeSetLocal('honda_sales_info', JSON.stringify(newSales));
 
-    // 3. Kirim ke Cloud jika terhubung
     if (cloudStatus === 'connected') {
       const globalPayload = {
-        logo: newLogo,
-        dealerName: newName,
-        dealerAddress: newAddress,
-        heroBackground: newHeroBg,
-        products: storyData?.products || products,
-        promos: storyData?.promos || promos,
-        storyTitle: storyData?.storyTitle || storyTitle,
-        storyCity: storyData?.storyCity || storyCity,
-        storyText1: storyData?.storyText1 || storyText1,
-        storyText2: storyData?.storyText2 || storyText2,
-        visi: storyData?.visi || visi,
-        misi: storyData?.misi || misi,
+        logo: newLogo, dealerName: newName, dealerAddress: newAddress, heroBackground: newHeroBg,
+        products: storyData?.products || products, promos: storyData?.promos || promos,
+        storyTitle: storyData?.storyTitle || storyTitle, storyCity: storyData?.storyCity || storyCity,
+        storyText1: storyData?.storyText1 || storyText1, storyText2: storyData?.storyText2 || storyText2,
+        visi: storyData?.visi || visi, misi: storyData?.misi || misi,
         salesAboutMessage: storyData?.salesAboutMessage || salesAboutMessage
       };
-      
-      try {
-        await saveGlobalData(globalPayload);
-        const salesId = newSales.whatsapp || 'master_profile';
-        await saveSalesProfile(salesId, newSales);
-        if (!isPersonalizedRef.current) await saveSalesProfile('master_profile', newSales);
-      } catch (e) {
-        console.error("Cloud Save Failed", e);
-      }
+      await saveGlobalData(globalPayload);
+      const salesId = String(newSales.whatsapp).trim() || 'master_profile';
+      await saveSalesProfile(salesId, newSales);
+      if (!isPersonalizedRef.current) await saveSalesProfile('master_profile', newSales);
     }
   };
 
@@ -276,7 +230,17 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar onNavigate={(v) => { setCurrentView(v); setSelectedProduct(null); }} currentView={selectedProduct ? 'home' : currentView} logo={logo} dealerName={dealerName} isStaff={isStaff} onOpenSettings={() => setIsAdminOpen(true)} onOpenSalesProfile={() => setIsSalesOpen(true)} onOpenPromos={() => setIsPromoOpen(true)} onOpenCatalog={() => setIsCatalogOpen(true)} />
+      <Navbar 
+        onNavigate={(v) => { setCurrentView(v); setSelectedProduct(null); }} 
+        currentView={selectedProduct ? 'home' : currentView} 
+        logo={logo} 
+        dealerName={dealerName} 
+        isStaff={isStaff} 
+        onOpenSettings={() => setIsAdminOpen(true)} 
+        onOpenSalesProfile={() => setIsSalesOpen(true)} 
+        onOpenPromos={() => setIsPromoOpen(true)} 
+        onOpenCatalog={() => setIsCatalogOpen(true)} 
+      />
       <main className="flex-grow">
         {selectedProduct ? (
           <ProductDetail product={selectedProduct} salesInfo={salesInfo} onBack={() => setSelectedProduct(null)} />
@@ -308,28 +272,39 @@ const App: React.FC = () => {
         storyText2={storyText2} 
         visi={visi} 
         misi={misi} 
-        salesAboutMessage={salesAboutMessage} 
+        salesAboutMessage={salesAboutMessage}
         remoteUrl={null}
-        onSyncRemote={async (url) => {}}
-        onSave={handleSaveAll} 
-        onReset={() => { 
-          if(confirm("Hapus semua data?")) {
-            localStorage.clear(); 
-            window.location.reload(); 
-          }
-        }} 
-        cloudStatus={cloudStatus} 
-        onPushToCloud={async () => { 
-          await handleSaveAll(salesInfo, logo, dealerName, dealerAddress, heroBackground, { products, promos, storyTitle, storyCity, storyText1, storyText2, visi, misi, salesAboutMessage }); 
-        }} 
-        onPullFromCloud={async () => { 
-          const d = await getGlobalDealerData(); 
-          if(d) applyGlobalData(d); 
-          const s = await getSalesProfile(activeSalesIdRef.current || 'master_profile'); 
-          if(s) applySalesData(s); 
-        }} 
+        onSyncRemote={async () => {}}
+        onSave={handleSaveAll}
+        onReset={() => { if(confirm("Reset semua data?")) { localStorage.clear(); window.location.reload(); } }}
+        cloudStatus={cloudStatus}
+        onPushToCloud={async () => { await handleSaveAll(salesInfo, logo, dealerName, dealerAddress, heroBackground, { products, promos }); }}
+        onPullFromCloud={async () => { const d = await getGlobalDealerData(); if(d) applyGlobalData(d); }}
       />
-      
-      <SalesProfileModal isOpen={isSalesOpen} onClose={() => setIsSalesOpen(false)} salesInfo={salesInfo} remoteUrl={null} onSave={(s) => handleSaveAll(s, logo, dealerName, dealerAddress, heroBackground)} />
-      <AdminPromoModal isOpen={isPromoOpen} onClose={() => setIsPromoOpen(false)} promos={promos} onSave={(p) => handleSaveAll(salesInfo, logo, dealerName, dealerAddress, heroBackground, {promos: p})} />
-      <AdminProductModal isOpen={
+
+      <SalesProfileModal 
+        isOpen={isSalesOpen} 
+        onClose={() => setIsSalesOpen(false)} 
+        salesInfo={salesInfo} 
+        remoteUrl={null}
+        onSave={(s) => handleSaveAll(s, logo, dealerName, dealerAddress, heroBackground)} 
+      />
+
+      <AdminPromoModal 
+        isOpen={isPromoOpen} 
+        onClose={() => setIsPromoOpen(false)} 
+        promos={promos} 
+        onSave={(p) => handleSaveAll(salesInfo, logo, dealerName, dealerAddress, heroBackground, {promos: p})} 
+      />
+
+      <AdminProductModal 
+        isOpen={isCatalogOpen} 
+        onClose={() => setIsCatalogOpen(false)} 
+        products={products} 
+        onSave={(p) => handleSaveAll(salesInfo, logo, dealerName, dealerAddress, heroBackground, {products: p})} 
+      />
+    </div>
+  );
+};
+
+export default App;
