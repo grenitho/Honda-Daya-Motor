@@ -10,14 +10,18 @@ interface SalesProfileModalProps {
   onSave: (newSales: SalesPerson) => void;
 }
 
+// Encoder yang lebih stabil untuk URL
 const safeBtoa = (str: string) => {
   try {
     return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => {
       return String.fromCharCode(parseInt(p1, 16));
     }));
   } catch (e) {
-    console.error("Encoding error:", e);
-    return "";
+    try {
+      return btoa(unescape(encodeURIComponent(str)));
+    } catch (e2) {
+      return "";
+    }
   }
 };
 
@@ -31,16 +35,16 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
     if (!isOpen) return;
     const baseUrl = `${window.location.origin}${window.location.pathname}`;
     
-    // Ambil config firebase agar link bisa dibuka di perangkat baru manapun
-    const fbConfig = localStorage.getItem('honda_firebase_config');
+    // Ambil config firebase
+    const fbConfigRaw = localStorage.getItem('honda_firebase_config');
     
-    // Hilangkan foto profil agar link tidak terlalu panjang dan menyebabkan error URL
-    // Foto akan diambil otomatis dari cloud saat link dibuka
+    // PENTING: Kita hapus foto profil dari link personal agar link tidak TERLALU PANJANG.
+    // Foto profil akan ditarik otomatis dari Cloud Database saat link dibuka di HP baru.
     const { photo, ...lightSalesInfo } = tempSales;
     
     const personalData = { 
       salesInfo: lightSalesInfo,
-      fbConfig: fbConfig ? JSON.parse(fbConfig) : null 
+      fbConfig: fbConfigRaw ? JSON.parse(fbConfigRaw) : null 
     }; 
     
     const encoded = safeBtoa(JSON.stringify(personalData));
@@ -71,7 +75,7 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
 
   const openShortener = (service: 'sid' | 'bitly') => {
     navigator.clipboard.writeText(personalUrl);
-    alert('Link panjang sudah disalin ke clipboard. Anda akan diarahkan ke ' + service + ' untuk membuat link pendek.');
+    alert('Link panjang sudah disalin ke clipboard. Gunakan ' + service + ' untuk membuat link pendek agar lebih mudah dibagikan di WhatsApp/Instagram.');
     const url = service === 'sid' ? 'https://s.id/' : 'https://bitly.com/';
     window.open(url, '_blank');
   };
@@ -196,7 +200,6 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
                       />
                    </div>
                 </div>
-                <p className="text-[7px] text-gray-400 italic">Kosongkan link jika Anda tidak ingin ikon sosial media tertentu tampil di website.</p>
               </div>
 
               <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex gap-4">

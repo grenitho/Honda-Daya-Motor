@@ -18,13 +18,20 @@ import { initFirebase, subscribeToDealerData, saveDealerDataToCloud, getDealerDa
 
 type ViewState = 'home' | 'about' | 'contact';
 
-const safeAtob = (str: string) => {
+// Decoder Base64 yang sangat kompatibel (Universal)
+const robustAtob = (str: string) => {
   try {
     return decodeURIComponent(atob(str).split('').map((c) => {
       return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
     }).join(''));
   } catch (e) {
-    return null;
+    try {
+      // Fallback untuk browser tertentu
+      return decodeURIComponent(escape(atob(str)));
+    } catch (e2) {
+      console.error("Decoding error:", e2);
+      return null;
+    }
   }
 };
 
@@ -55,10 +62,11 @@ const App: React.FC = () => {
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState('Menginisialisasi Sistem...');
   
   const isPersonalizedRef = useRef(false);
   const urlSalesDataRef = useRef<any>(null);
-  const isEditingRef = useRef(false); // Flag untuk mencegah overwrite saat admin sedang mengetik
+  const isEditingRef = useRef(false); 
   const [cloudStatus, setCloudStatus] = useState<'connected' | 'offline' | 'syncing' | 'error'>('offline');
   
   const firebaseUnsubscribe = useRef<any>(null);
@@ -66,15 +74,16 @@ const App: React.FC = () => {
   const applyData = useCallback((data: any, saveLocally = true) => {
     if (!data || isEditingRef.current) return;
     
-    if (data.products) setProducts(data.products);
-    if (data.promos) setPromos(data.promos);
+    // Prioritaskan data cloud jika tersedia, jika tidak biarkan state saat ini
+    if (data.products && Array.isArray(data.products) && data.products.length > 0) setProducts(data.products);
+    if (data.promos && Array.isArray(data.promos) && data.promos.length > 0) setPromos(data.promos);
     
     if (data.salesInfo) {
       if (isPersonalizedRef.current && urlSalesDataRef.current) {
         setSalesInfo((prev) => ({ 
           ...prev, 
-          ...data.salesInfo, 
-          ...urlSalesDataRef.current 
+          ...data.salesInfo, // Foto & Bio lengkap dari Cloud
+          ...urlSalesDataRef.current // Nama & WA unik dari Link
         }));
       } else {
         setSalesInfo((prev) => ({ ...prev, ...data.salesInfo }));
@@ -95,121 +104,113 @@ const App: React.FC = () => {
     if (data.salesAboutMessage) setSalesAboutMessage(data.salesAboutMessage);
 
     if (saveLocally) {
-      if (data.products) localStorage.setItem('honda_catalog', JSON.stringify(data.products));
-      if (data.promos) localStorage.setItem('honda_promos', JSON.stringify(data.promos));
-      if (data.salesInfo && !isPersonalizedRef.current) localStorage.setItem('honda_sales_info', JSON.stringify(data.salesInfo));
+      localStorage.setItem('honda_catalog', JSON.stringify(data.products || products));
+      localStorage.setItem('honda_promos', JSON.stringify(data.promos || promos));
+      if (!isPersonalizedRef.current && data.salesInfo) localStorage.setItem('honda_sales_info', JSON.stringify(data.salesInfo));
       if (data.logo) localStorage.setItem('honda_dealer_logo', data.logo);
       if (data.heroBackground) localStorage.setItem('honda_hero_bg', data.heroBackground);
       if (data.dealerName) localStorage.setItem('honda_dealer_name', data.dealerName);
       if (data.dealerAddress) localStorage.setItem('honda_dealer_address', data.dealerAddress);
       
-      if (data.storyTitle) localStorage.setItem('honda_story_title', data.storyTitle);
-      if (data.storyCity) localStorage.setItem('honda_story_city', data.storyCity);
-      if (data.storyText1) localStorage.setItem('honda_story_text1', data.storyText1);
-      if (data.storyText2) localStorage.setItem('honda_story_text2', data.storyText2);
-      if (data.visi) localStorage.setItem('honda_visi', data.visi);
-      if (data.misi) localStorage.setItem('honda_misi', data.misi);
-      if (data.salesAboutMessage) localStorage.setItem('honda_sales_about_msg', data.salesAboutMessage);
-      
       localStorage.setItem('honda_setup_completed', 'true');
     }
-  }, []);
+  }, [products, promos]);
 
   useEffect(() => {
     const initialize = async () => {
+      setLoadingMsg('Menyiapkan Dealer...');
       const urlParams = new URLSearchParams(window.location.search);
-      setIsStaff(urlParams.get('staff') === 'true');
+      const staffMode = urlParams.get('staff') === 'true';
+      setIsStaff(staffMode);
 
       let initialFbConfig = localStorage.getItem('honda_firebase_config');
 
-      // 1. Cek Parameter P (Personal Link)
+      // 1. Dekode Link Personal (?p=...)
       const pParam = urlParams.get('p');
       if (pParam) {
-        const decoded = safeAtob(pParam);
+        const decoded = robustAtob(pParam);
         if (decoded) {
           try {
             const parsed = JSON.parse(decoded);
             if (parsed.salesInfo) {
               urlSalesDataRef.current = parsed.salesInfo;
               isPersonalizedRef.current = true;
-              setSalesInfo((prev) => ({ ...prev, ...parsed.salesInfo }));
             }
             if (parsed.fbConfig) {
               initialFbConfig = JSON.stringify(parsed.fbConfig);
               localStorage.setItem('honda_firebase_config', initialFbConfig);
             }
-          } catch(e) { console.error("Error parsing link"); }
+          } catch(e) { console.error("URL Parameter Parse Error"); }
         }
       }
 
-      // 2. Cek Parameter FB (Setup Link)
+      // 2. Dekode Setup Link (?fb=...)
       const fbParam = urlParams.get('fb');
       if (fbParam) {
-        const decodedFb = safeAtob(fbParam);
+        const decodedFb = robustAtob(fbParam);
         if (decodedFb) {
           initialFbConfig = decodedFb;
           localStorage.setItem('honda_firebase_config', decodedFb);
         }
       }
 
-      // 3. Load Local Data
+      // 3. Load Data Lokal (Fallback Cepat)
       const isSetupCompleted = localStorage.getItem('honda_setup_completed') === 'true';
-      setProducts(JSON.parse(localStorage.getItem('honda_catalog') || (isSetupCompleted ? '[]' : JSON.stringify(INITIAL_PRODUCTS))));
-      setPromos(JSON.parse(localStorage.getItem('honda_promos') || (isSetupCompleted ? '[]' : JSON.stringify(DEFAULT_PROMOS))));
-      
-      if (!isPersonalizedRef.current) {
+      if (isSetupCompleted) {
+        setProducts(JSON.parse(localStorage.getItem('honda_catalog') || '[]'));
+        setPromos(JSON.parse(localStorage.getItem('honda_promos') || '[]'));
+        setLogo(localStorage.getItem('honda_dealer_logo'));
+        setDealerName(localStorage.getItem('honda_dealer_name') || 'HONDA DEALER');
+        setDealerAddress(localStorage.getItem('honda_dealer_address') || '');
         setSalesInfo(JSON.parse(localStorage.getItem('honda_sales_info') || JSON.stringify(DEFAULT_SALES)));
       }
 
-      setLogo(localStorage.getItem('honda_dealer_logo') || (isSetupCompleted ? null : DEFAULT_LOGO_URL));
-      setHeroBackground(localStorage.getItem('honda_hero_bg') || DEFAULT_HERO_BG_URL);
-      setDealerName(localStorage.getItem('honda_dealer_name') || 'HONDA DAYA MOTOR SUNGAILIAT');
-      setDealerAddress(localStorage.getItem('honda_dealer_address') || 'Jl. Batin Tikal No.423...');
-      
-      setStoryTitle(localStorage.getItem('honda_story_title') || DEFAULT_STORY.title);
-      setStoryCity(localStorage.getItem('honda_story_city') || DEFAULT_STORY.city);
-      setStoryText1(localStorage.getItem('honda_story_text1') || DEFAULT_STORY.text1);
-      setStoryText2(localStorage.getItem('honda_story_text2') || DEFAULT_STORY.text2);
-      setVisi(localStorage.getItem('honda_visi') || DEFAULT_STORY.visi);
-      setMisi(localStorage.getItem('honda_misi') || DEFAULT_STORY.misi);
-      setSalesAboutMessage(localStorage.getItem('honda_sales_about_msg') || "Sebagai konsultan penjualan Anda, misi saya adalah memberikan kemudahan dalam setiap langkah kepemilikan motor Honda Anda...");
-
-      // 4. Cloud Sync
+      // 4. Sinkronisasi CLOUD (WAJIB sebelum Finish)
       if (initialFbConfig) {
+        setLoadingMsg('Menyambungkan Database Cloud...');
         try {
-          initFirebase(JSON.parse(initialFbConfig));
+          const config = JSON.parse(initialFbConfig);
+          initFirebase(config);
           setCloudStatus('connected');
-          const cloudData = await getDealerDataOnce();
-          if (cloudData) applyData(cloudData, true);
-          firebaseUnsubscribe.current = subscribeToDealerData((updatedData) => applyData(updatedData, true));
+          
+          setLoadingMsg('Mengunduh Data Terbaru...');
+          // Gunakan Promise.race untuk mencegah hang jika internet lambat
+          const cloudDataPromise = getDealerDataOnce();
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000));
+          
+          try {
+            const cloudData = await Promise.race([cloudDataPromise, timeoutPromise]) as any;
+            if (cloudData) {
+              applyData(cloudData, true);
+            }
+          } catch (error) {
+            console.warn("Cloud sync timed out, using local/default data.");
+          }
+
+          // Tetap subscribe untuk update di masa depan
+          firebaseUnsubscribe.current = subscribeToDealerData((updatedData) => {
+            applyData(updatedData, true);
+          });
         } catch (e) { 
           setCloudStatus('error');
-          console.error("Firebase Sync Fail:", e);
         }
+      } else if (!isSetupCompleted) {
+        // Jika tidak ada config dan belum pernah setup, tampilkan default
+        setProducts(INITIAL_PRODUCTS);
+        setPromos(DEFAULT_PROMOS);
       }
       
-      setIsInitialized(true);
+      setLoadingMsg('Selamat Datang!');
+      setTimeout(() => setIsInitialized(true), 600);
     };
+
     initialize();
     return () => firebaseUnsubscribe.current?.();
   }, [applyData]);
 
-  const handlePushToCloud = async () => {
-    const currentData = {
-      salesInfo, logo, dealerName, dealerAddress, heroBackground, products, promos,
-      storyTitle, storyCity, storyText1, storyText2, visi, misi, salesAboutMessage
-    };
-    await saveDealerDataToCloud(currentData);
-  };
-
-  const handlePullFromCloud = async () => {
-    const cloudData = await getDealerDataOnce();
-    if (cloudData) applyData(cloudData, true);
-  };
-
   const handleSaveAdminSettings = async (newSales: SalesPerson, newLogo: string | null, newName: string, newAddress: string, newHeroBg: string, storyData?: any) => {
-    isEditingRef.current = true; // Kunci sinkronisasi cloud sementara
-    const newData = {
+    isEditingRef.current = true;
+    const combinedData = {
       salesInfo: newSales,
       logo: newLogo,
       dealerName: newName,
@@ -225,46 +226,47 @@ const App: React.FC = () => {
     setDealerName(newName);
     setDealerAddress(newAddress);
     setHeroBackground(newHeroBg);
-    
-    if (storyData) {
-      if (storyData.storyTitle) setStoryTitle(storyData.storyTitle);
-      if (storyData.storyCity) setStoryCity(storyData.storyCity);
-      if (storyData.storyText1) setStoryText1(storyData.storyText1);
-      if (storyData.storyText2) setStoryText2(storyData.storyText2);
-      if (storyData.visi) setVisi(storyData.visi);
-      if (storyData.misi) setMisi(storyData.misi);
-      if (storyData.salesAboutMessage) setSalesAboutMessage(storyData.salesAboutMessage);
+    if (storyData?.products) setProducts(storyData.products);
+    if (storyData?.promos) setPromos(storyData.promos);
+
+    applyData(combinedData, true);
+    if (cloudStatus === 'connected') {
+      await saveDealerDataToCloud(combinedData);
     }
-
-    applyData(newData, true);
-    if (cloudStatus === 'connected') await saveDealerDataToCloud(newData);
-    isEditingRef.current = false; // Lepas kunci
+    isEditingRef.current = false;
   };
 
-  const handleNavigate = (view: ViewState) => {
-    setCurrentView(view);
-    setSelectedProduct(null);
-  };
-
-  if (!isInitialized) return null;
+  if (!isInitialized) {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-white">
+        <div className="relative">
+          <div className="text-7xl font-black italic text-honda-red animate-pulse">H</div>
+          <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-honda-red rounded-full animate-ping"></div>
+        </div>
+        <div className="mt-8 flex flex-col items-center gap-2">
+           <div className="w-48 h-1 bg-gray-100 rounded-full overflow-hidden">
+             <div className="w-1/2 h-full bg-honda-red animate-[shimmer_1.5s_infinite_linear]"></div>
+           </div>
+           <p className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-300 animate-pulse">{loadingMsg}</p>
+        </div>
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(200%); }
+          }
+        `}} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar onNavigate={handleNavigate} currentView={selectedProduct ? 'home' : currentView} logo={logo} dealerName={dealerName} isStaff={isStaff} onOpenSettings={() => setIsAdminOpen(true)} onOpenSalesProfile={() => setIsSalesOpen(true)} onOpenPromos={() => setIsPromoOpen(true)} onOpenCatalog={() => setIsCatalogOpen(true)} />
+      <Navbar onNavigate={(v) => { setCurrentView(v); setSelectedProduct(null); }} currentView={selectedProduct ? 'home' : currentView} logo={logo} dealerName={dealerName} isStaff={isStaff} onOpenSettings={() => setIsAdminOpen(true)} onOpenSalesProfile={() => setIsSalesOpen(true)} onOpenPromos={() => setIsPromoOpen(true)} onOpenCatalog={() => setIsCatalogOpen(true)} />
       <main className="flex-grow">
         {selectedProduct ? (
           <ProductDetail product={selectedProduct} salesInfo={salesInfo} onBack={() => setSelectedProduct(null)} />
         ) : currentView === 'about' ? (
-          <About 
-            salesInfo={salesInfo} 
-            storyTitle={storyTitle} 
-            storyCity={storyCity} 
-            storyText1={storyText1} 
-            storyText2={storyText2} 
-            visi={visi}
-            misi={misi}
-            salesAboutMessage={salesAboutMessage} 
-          />
+          <About salesInfo={salesInfo} storyTitle={storyTitle} storyCity={storyCity} storyText1={storyText1} storyText2={storyText2} visi={visi} misi={misi} salesAboutMessage={salesAboutMessage} />
         ) : currentView === 'contact' ? (
           <Contact salesInfo={salesInfo} />
         ) : (
@@ -282,35 +284,11 @@ const App: React.FC = () => {
           'bg-gray-800 text-gray-400 border-gray-700'
         }`}>
           <div className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'connected' ? 'bg-white animate-pulse' : 'bg-current'}`}></div>
-          Cloud: {cloudStatus}
+          DB: {cloudStatus}
         </div>
       )}
 
-      <AdminSettingsModal 
-        isOpen={isAdminOpen} 
-        onClose={() => setIsAdminOpen(false)} 
-        salesInfo={salesInfo} 
-        products={products} 
-        promos={promos} 
-        logo={logo} 
-        heroBackground={heroBackground} 
-        dealerName={dealerName} 
-        dealerAddress={dealerAddress} 
-        storyTitle={storyTitle} 
-        storyCity={storyCity} 
-        storyText1={storyText1} 
-        storyText2={storyText2} 
-        visi={visi}
-        misi={misi}
-        salesAboutMessage={salesAboutMessage} 
-        onSave={handleSaveAdminSettings} 
-        onReset={() => { if(confirm("Hapus semua data lokal dan database cloud?")) { localStorage.clear(); window.location.reload(); } }} 
-        onSyncRemote={async () => {}} 
-        remoteUrl={null}
-        onPushToCloud={handlePushToCloud}
-        onPullFromCloud={handlePullFromCloud}
-        cloudStatus={cloudStatus}
-      />
+      <AdminSettingsModal isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} salesInfo={salesInfo} products={products} promos={promos} logo={logo} heroBackground={heroBackground} dealerName={dealerName} dealerAddress={dealerAddress} storyTitle={storyTitle} storyCity={storyCity} storyText1={storyText1} storyText2={storyText2} visi={visi} misi={misi} salesAboutMessage={salesAboutMessage} onSave={handleSaveAdminSettings} onReset={() => { if(confirm("Hapus semua data?")) { localStorage.clear(); window.location.reload(); } }} onSyncRemote={async () => {}} remoteUrl={null} cloudStatus={cloudStatus} onPushToCloud={async () => { await saveDealerDataToCloud({ salesInfo, logo, dealerName, dealerAddress, heroBackground, products, promos, storyTitle, storyCity, storyText1, storyText2, visi, misi, salesAboutMessage }); }} onPullFromCloud={async () => { const d = await getDealerDataOnce(); if(d) applyData(d, true); }} />
       <SalesProfileModal isOpen={isSalesOpen} onClose={() => setIsSalesOpen(false)} salesInfo={salesInfo} remoteUrl={null} onSave={(s) => handleSaveAdminSettings(s, logo, dealerName, dealerAddress, heroBackground)} />
       <AdminPromoModal isOpen={isPromoOpen} onClose={() => setIsPromoOpen(false)} promos={promos} onSave={(p) => handleSaveAdminSettings(salesInfo, logo, dealerName, dealerAddress, heroBackground, {promos: p})} />
       <AdminProductModal isOpen={isCatalogOpen} onClose={() => setIsCatalogOpen(false)} products={products} onSave={(p) => handleSaveAdminSettings(salesInfo, logo, dealerName, dealerAddress, heroBackground, {products: p})} />
