@@ -31,14 +31,21 @@ const SalesProfileModal: React.FC<SalesProfileModalProps> = ({ isOpen, onClose, 
     if (!isOpen) return;
     const baseUrl = `${window.location.origin}${window.location.pathname}`;
     
-    // Hilangkan foto profil agar link tidak terlalu panjang dan menyebabkan error
-    const { photo, ...lightSalesInfo } = tempSales;
-    const personalData = { salesInfo: lightSalesInfo }; 
-    const encoded = safeBtoa(JSON.stringify(personalData));
+    // Ambil config firebase agar link bisa dibuka di perangkat baru manapun
+    const fbConfig = localStorage.getItem('honda_firebase_config');
     
-    const remoteParam = remoteUrl ? `&remote=${encodeURIComponent(remoteUrl)}` : '';
-    setPersonalUrl(`${baseUrl}?p=${encoded}${remoteParam}`);
-  }, [tempSales, isOpen, remoteUrl]);
+    // Hilangkan foto profil agar link tidak terlalu panjang dan menyebabkan error URL
+    // Foto akan diambil otomatis dari cloud saat link dibuka
+    const { photo, ...lightSalesInfo } = tempSales;
+    
+    const personalData = { 
+      salesInfo: lightSalesInfo,
+      fbConfig: fbConfig ? JSON.parse(fbConfig) : null 
+    }; 
+    
+    const encoded = safeBtoa(JSON.stringify(personalData));
+    setPersonalUrl(`${baseUrl}?p=${encoded}`);
+  }, [tempSales, isOpen]);
 
   useEffect(() => {
     if (isOpen) {

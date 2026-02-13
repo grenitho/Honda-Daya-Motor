@@ -56,27 +56,25 @@ const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
   
-  // Gunakan Ref untuk isPersonalized agar tidak memicu re-render / loop pada useEffect
   const isPersonalizedRef = useRef(false);
   const urlSalesDataRef = useRef<any>(null);
+  const isEditingRef = useRef(false); // Flag untuk mencegah overwrite saat admin sedang mengetik
   const [cloudStatus, setCloudStatus] = useState<'connected' | 'offline' | 'syncing' | 'error'>('offline');
   
   const firebaseUnsubscribe = useRef<any>(null);
 
   const applyData = useCallback((data: any, saveLocally = true) => {
-    if (!data) return;
+    if (!data || isEditingRef.current) return;
     
     if (data.products) setProducts(data.products);
     if (data.promos) setPromos(data.promos);
     
-    // Logika Penggabungan Data Sales
     if (data.salesInfo) {
       if (isPersonalizedRef.current && urlSalesDataRef.current) {
-        // Jika link personal digunakan, gabungkan info dari link dengan info dari Cloud (ambil fotonya saja dari cloud)
         setSalesInfo((prev) => ({ 
           ...prev, 
-          ...data.salesInfo, // Ambil data default/cloud dulu (termasuk foto)
-          ...urlSalesDataRef.current // Timpa dengan data dari link (nama, wa, dll)
+          ...data.salesInfo, 
+          ...urlSalesDataRef.current 
         }));
       } else {
         setSalesInfo((prev) => ({ ...prev, ...data.salesInfo }));
@@ -117,43 +115,14 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const createLocalBackup = useCallback(() => {
-    const currentData = {
-      salesInfo,
-      logo,
-      dealerName,
-      dealerAddress,
-      heroBackground,
-      products,
-      promos,
-      storyTitle,
-      storyCity,
-      storyText1,
-      storyText2,
-      visi,
-      misi,
-      salesAboutMessage,
-      timestamp: new Date().toISOString()
-    };
-    localStorage.setItem('honda_emergency_backup', JSON.stringify(currentData));
-  }, [salesInfo, logo, dealerName, dealerAddress, heroBackground, products, promos, storyTitle, storyCity, storyText1, storyText2, visi, misi, salesAboutMessage]);
-
   useEffect(() => {
     const initialize = async () => {
       const urlParams = new URLSearchParams(window.location.search);
       setIsStaff(urlParams.get('staff') === 'true');
 
-      // 1. Cek Config Firebase
-      const fbParam = urlParams.get('fb');
-      if (fbParam) {
-        const decodedFb = safeAtob(fbParam);
-        if (decodedFb) {
-          localStorage.setItem('honda_firebase_config', decodedFb);
-          window.history.replaceState({}, '', window.location.pathname + '?staff=true');
-        }
-      }
+      let initialFbConfig = localStorage.getItem('honda_firebase_config');
 
-      // 2. Cek Personal Link (Paling Prioritas)
+      // 1. Cek Parameter P (Personal Link)
       const pParam = urlParams.get('p');
       if (pParam) {
         const decoded = safeAtob(pParam);
@@ -163,30 +132,39 @@ const App: React.FC = () => {
             if (parsed.salesInfo) {
               urlSalesDataRef.current = parsed.salesInfo;
               isPersonalizedRef.current = true;
-              // Set sementara sambil menunggu data lengkap (foto) dari cloud/local
               setSalesInfo((prev) => ({ ...prev, ...parsed.salesInfo }));
             }
-          } catch(e) { console.error("Invalid personal link"); }
+            if (parsed.fbConfig) {
+              initialFbConfig = JSON.stringify(parsed.fbConfig);
+              localStorage.setItem('honda_firebase_config', initialFbConfig);
+            }
+          } catch(e) { console.error("Error parsing link"); }
         }
       }
 
-      // 3. Muat Data Lokal
+      // 2. Cek Parameter FB (Setup Link)
+      const fbParam = urlParams.get('fb');
+      if (fbParam) {
+        const decodedFb = safeAtob(fbParam);
+        if (decodedFb) {
+          initialFbConfig = decodedFb;
+          localStorage.setItem('honda_firebase_config', decodedFb);
+        }
+      }
+
+      // 3. Load Local Data
       const isSetupCompleted = localStorage.getItem('honda_setup_completed') === 'true';
       setProducts(JSON.parse(localStorage.getItem('honda_catalog') || (isSetupCompleted ? '[]' : JSON.stringify(INITIAL_PRODUCTS))));
       setPromos(JSON.parse(localStorage.getItem('honda_promos') || (isSetupCompleted ? '[]' : JSON.stringify(DEFAULT_PROMOS))));
       
       if (!isPersonalizedRef.current) {
         setSalesInfo(JSON.parse(localStorage.getItem('honda_sales_info') || JSON.stringify(DEFAULT_SALES)));
-      } else {
-        // Gabungkan data dari LocalStorage (terutama foto) jika ada
-        const localSales = JSON.parse(localStorage.getItem('honda_sales_info') || '{}');
-        setSalesInfo((prev) => ({ ...prev, ...localSales, ...urlSalesDataRef.current }));
       }
 
       setLogo(localStorage.getItem('honda_dealer_logo') || (isSetupCompleted ? null : DEFAULT_LOGO_URL));
       setHeroBackground(localStorage.getItem('honda_hero_bg') || DEFAULT_HERO_BG_URL);
       setDealerName(localStorage.getItem('honda_dealer_name') || 'HONDA DAYA MOTOR SUNGAILIAT');
-      setDealerAddress(localStorage.getItem('honda_dealer_address') || 'Jl. Batin Tikal No.423, Karya Makmur, Kec. Pemali, Kabupaten Bangka...');
+      setDealerAddress(localStorage.getItem('honda_dealer_address') || 'Jl. Batin Tikal No.423...');
       
       setStoryTitle(localStorage.getItem('honda_story_title') || DEFAULT_STORY.title);
       setStoryCity(localStorage.getItem('honda_story_city') || DEFAULT_STORY.city);
@@ -196,18 +174,20 @@ const App: React.FC = () => {
       setMisi(localStorage.getItem('honda_misi') || DEFAULT_STORY.misi);
       setSalesAboutMessage(localStorage.getItem('honda_sales_about_msg') || "Sebagai konsultan penjualan Anda, misi saya adalah memberikan kemudahan dalam setiap langkah kepemilikan motor Honda Anda...");
 
-      // 4. Inisialisasi Firebase & Sync
-      const fbConfigStr = localStorage.getItem('honda_firebase_config');
-      if (fbConfigStr) {
+      // 4. Cloud Sync
+      if (initialFbConfig) {
         try {
-          initFirebase(JSON.parse(fbConfigStr));
+          initFirebase(JSON.parse(initialFbConfig));
           setCloudStatus('connected');
+          const cloudData = await getDealerDataOnce();
+          if (cloudData) applyData(cloudData, true);
           firebaseUnsubscribe.current = subscribeToDealerData((updatedData) => applyData(updatedData, true));
         } catch (e) { 
           setCloudStatus('error');
-          console.error("Firebase sync error:", e);
+          console.error("Firebase Sync Fail:", e);
         }
       }
+      
       setIsInitialized(true);
     };
     initialize();
@@ -216,48 +196,27 @@ const App: React.FC = () => {
 
   const handlePushToCloud = async () => {
     const currentData = {
-      salesInfo,
-      logo,
-      dealerName,
-      dealerAddress,
-      heroBackground,
-      products,
-      promos,
-      storyTitle,
-      storyCity,
-      storyText1,
-      storyText2,
-      visi,
-      misi,
-      salesAboutMessage
+      salesInfo, logo, dealerName, dealerAddress, heroBackground, products, promos,
+      storyTitle, storyCity, storyText1, storyText2, visi, misi, salesAboutMessage
     };
     await saveDealerDataToCloud(currentData);
   };
 
   const handlePullFromCloud = async () => {
-    createLocalBackup();
     const cloudData = await getDealerDataOnce();
     if (cloudData) applyData(cloudData, true);
   };
 
-  const handleRestoreBackup = async () => {
-    const backupStr = localStorage.getItem('honda_emergency_backup');
-    if (backupStr) {
-      const backupData = JSON.parse(backupStr);
-      applyData(backupData, true);
-      localStorage.removeItem('honda_emergency_backup');
-    }
-  };
-
   const handleSaveAdminSettings = async (newSales: SalesPerson, newLogo: string | null, newName: string, newAddress: string, newHeroBg: string, storyData?: any) => {
+    isEditingRef.current = true; // Kunci sinkronisasi cloud sementara
     const newData = {
       salesInfo: newSales,
       logo: newLogo,
       dealerName: newName,
       dealerAddress: newAddress,
       heroBackground: newHeroBg,
-      products,
-      promos,
+      products: storyData?.products || products,
+      promos: storyData?.promos || promos,
       ...storyData
     };
 
@@ -277,8 +236,9 @@ const App: React.FC = () => {
       if (storyData.salesAboutMessage) setSalesAboutMessage(storyData.salesAboutMessage);
     }
 
-    if (cloudStatus === 'connected') await saveDealerDataToCloud(newData);
     applyData(newData, true);
+    if (cloudStatus === 'connected') await saveDealerDataToCloud(newData);
+    isEditingRef.current = false; // Lepas kunci
   };
 
   const handleNavigate = (view: ViewState) => {
@@ -344,12 +304,11 @@ const App: React.FC = () => {
         misi={misi}
         salesAboutMessage={salesAboutMessage} 
         onSave={handleSaveAdminSettings} 
-        onReset={() => { localStorage.clear(); window.location.reload(); }} 
+        onReset={() => { if(confirm("Hapus semua data lokal dan database cloud?")) { localStorage.clear(); window.location.reload(); } }} 
         onSyncRemote={async () => {}} 
         remoteUrl={null}
         onPushToCloud={handlePushToCloud}
         onPullFromCloud={handlePullFromCloud}
-        onRestoreBackup={handleRestoreBackup}
         cloudStatus={cloudStatus}
       />
       <SalesProfileModal isOpen={isSalesOpen} onClose={() => setIsSalesOpen(false)} salesInfo={salesInfo} remoteUrl={null} onSave={(s) => handleSaveAdminSettings(s, logo, dealerName, dealerAddress, heroBackground)} />
