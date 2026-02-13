@@ -102,7 +102,7 @@ const Footer: React.FC<FooterProps> = ({ dealerName, salesInfo, logo }) => {
         </div>
 
         <div className="border-t border-gray-900 mt-20 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-600 gap-4">
-          <p>© 2024 Authorized {dealerName}. All Rights Reserved.</p>
+          <p>© 2026 Authorized {dealerName}. All Rights Reserved.</p>
           <div className="flex gap-8">
             <span>Privacy Policy</span>
             <span>Terms of Service</span>
